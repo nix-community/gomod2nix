@@ -6,6 +6,7 @@ import (
 	"github.com/tweag/gomod2nix/fetch"
 	// "github.com/tweag/gomod2nix/formats/buildgopackage"
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
+	"io/ioutil"
 	"path/filepath"
 )
 
@@ -16,6 +17,7 @@ func main() {
 	numWorkers := 20
 	keepGoing := true
 	directory := "./"
+	outFile := "gomod2nix.toml"
 
 	pkgs, err := fetch.FetchPackages(filepath.Join(directory, "go.mod"), filepath.Join(directory, "go.sum"), numWorkers, keepGoing)
 	if err != nil {
@@ -28,6 +30,10 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(string(output))
+	err = ioutil.WriteFile(outFile, output, 0644)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(fmt.Sprintf("Wrote: %s", outFile))
 
 }
