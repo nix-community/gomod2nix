@@ -4,5 +4,5 @@ type Package struct {
 	GoPackagePath string
 	URL           string
 	Rev           string
-	Hash          string
+	Sha256        string
 }

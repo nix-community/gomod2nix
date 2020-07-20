@@ -156,8 +156,8 @@ func fetchPackage(importPath string, goPackagePath string, rev string) (*types.P
 		// older output file (as the revs) don't match
 		//
 		// This is used to skip fetching where the previous package path & rev are still the same
-		Rev:  rev,
-		Hash: fmt.Sprintf("sha256:%s", output.Sha256),
+		Rev:    rev,
+		Sha256: output.Sha256,
 	}, nil
 
 }

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/tweag/gomod2nix/fetch"
+	"github.com/tweag/gomod2nix/formats/buildgopackage"
 	"path/filepath"
 )
 
@@ -20,8 +21,11 @@ func main() {
 		panic(err)
 	}
 
-	for _, pkg := range pkgs {
-		fmt.Println(pkg)
+	output, err := buildgopackage.Marshal(pkgs)
+	if err != nil {
+		panic(err)
 	}
+
+	fmt.Println(string(output))
 
 }
