@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/vcs"
+	"io/ioutil"
 	"os/exec"
+	"sort"
 )
 
 type Package struct {
@@ -14,16 +17,87 @@ type Package struct {
 	Hash          string
 }
 
-func fetchPackage(replace map[string]string, goPackagePath string, rev string) (*Package, error) {
+func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing bool) ([]*Package, error) {
 
-	// Check for replacement path (only original goPackagePath is recorded in go.sum)
-	repo := goPackagePath
-	v, ok := replace[goPackagePath]
-	if ok {
-		repo = v
+	// Read go.mod
+	data, err := ioutil.ReadFile(goModPath)
+	if err != nil {
+		return nil, err
 	}
 
-	repoRoot, err := vcs.RepoRootForImportPath(repo, false)
+	// Parse go.mod
+	mod, err := modfile.Parse(goModPath, data, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// // Parse require
+	// require := make(map[string]module.Version)
+	// for _, req := range mod.Require {
+	// 	require[req.Mod.Path] = req.Mod
+	// }
+
+	// Map repos -> replacement repo
+	replace := make(map[string]string)
+	for _, repl := range mod.Replace {
+		replace[repl.Old.Path] = repl.New.Path
+	}
+
+	revs, err := parseGoSum(goSumPath)
+	if err != nil {
+		return nil, err
+	}
+
+	numJobs := len(revs)
+	if numJobs < numWorkers {
+		numWorkers = numJobs
+	}
+
+	jobs := make(chan *packageJob, numJobs)
+	results := make(chan *packageResult, numJobs)
+	for i := 0; i <= numWorkers; i++ {
+		go worker(i, replace, jobs, results)
+	}
+
+	for goPackagePath, rev := range revs {
+		// Check for replacement path (only original goPackagePath is recorded in go.sum)
+		importPath := goPackagePath
+		v, ok := replace[goPackagePath]
+		if ok {
+			importPath = v
+		}
+		jobs <- &packageJob{
+			importPath:    importPath,
+			goPackagePath: goPackagePath,
+			rev:           rev,
+		}
+	}
+	close(jobs)
+
+	var pkgs []*Package
+	for i := 1; i <= numJobs; i++ {
+		result := <-results
+		if result.err != nil {
+			if keepGoing {
+				fmt.Println(result.err)
+				continue
+			} else {
+				return nil, result.err
+			}
+		}
+
+		pkgs = append(pkgs, result.pkg)
+	}
+
+	sort.Slice(pkgs, func(i, j int) bool {
+		return pkgs[i].GoPackagePath < pkgs[j].GoPackagePath
+	})
+
+	return pkgs, nil
+}
+
+func fetchPackage(importPath string, goPackagePath string, rev string) (*Package, error) {
+	repoRoot, err := vcs.RepoRootForImportPath(importPath, false)
 	if err != nil {
 		return nil, err
 	}
