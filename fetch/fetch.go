@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"sort"
+	"strings"
 )
 
 type packageJob struct {
@@ -138,7 +139,21 @@ func fetchPackage(importPath string, goPackagePath string, rev string) (*types.P
 		"--url", repoRoot.Repo,
 		"--rev", rev).Output()
 	if err != nil {
-		return nil, err
+		// It's a relatively common idiom to tag storage/v1.0.0
+		newRev := fmt.Sprintf("%s/%s", strings.TrimPrefix(goPackagePath, repoRoot.Root+"/"), rev)
+		originalErr := err
+
+		stdout, err = exec.Command(
+			"nix-prefetch-git",
+			"--quiet",
+			"--fetch-submodules",
+			"--url", repoRoot.Repo,
+			"--rev", newRev).Output()
+		if err != nil {
+			return nil, originalErr
+		}
+
+		rev = newRev
 	}
 
 	var output *prefetchOutput
