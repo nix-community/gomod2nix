@@ -4,7 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/tweag/gomod2nix/fetch"
-	"github.com/tweag/gomod2nix/formats/buildgopackage"
+	// "github.com/tweag/gomod2nix/formats/buildgopackage"
+	"github.com/tweag/gomod2nix/formats/gomod2nix"
 	"path/filepath"
 )
 
@@ -21,7 +22,8 @@ func main() {
 		panic(err)
 	}
 
-	output, err := buildgopackage.Marshal(pkgs)
+	// output, err := buildgopackage.Marshal(pkgs)
+	output, err := gomod2nix.Marshal(pkgs)
 	if err != nil {
 		panic(err)
 	}
