@@ -1,8 +1,9 @@
-package main
+package fetch
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tweag/gomod2nix/types"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/vcs"
 	"io/ioutil"
@@ -10,14 +11,28 @@ import (
 	"sort"
 )
 
-type Package struct {
-	GoPackagePath string
-	URL           string
-	Rev           string
-	Hash          string
+type packageJob struct {
+	importPath    string
+	goPackagePath string
+	rev           string
 }
 
-func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing bool) ([]*Package, error) {
+type packageResult struct {
+	pkg *types.Package
+	err error
+}
+
+func worker(id int, replace map[string]string, jobs <-chan *packageJob, results chan<- *packageResult) {
+	for j := range jobs {
+		pkg, err := fetchPackage(j.importPath, j.goPackagePath, j.rev)
+		results <- &packageResult{
+			err: err,
+			pkg: pkg,
+		}
+	}
+}
+
+func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
 
 	// Read go.mod
 	data, err := ioutil.ReadFile(goModPath)
@@ -74,7 +89,7 @@ func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing
 	}
 	close(jobs)
 
-	var pkgs []*Package
+	var pkgs []*types.Package
 	for i := 1; i <= numJobs; i++ {
 		result := <-results
 		if result.err != nil {
@@ -96,7 +111,7 @@ func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing
 	return pkgs, nil
 }
 
-func fetchPackage(importPath string, goPackagePath string, rev string) (*Package, error) {
+func fetchPackage(importPath string, goPackagePath string, rev string) (*types.Package, error) {
 	repoRoot, err := vcs.RepoRootForImportPath(importPath, false)
 	if err != nil {
 		return nil, err
@@ -133,7 +148,7 @@ func fetchPackage(importPath string, goPackagePath string, rev string) (*Package
 		return nil, err
 	}
 
-	return &Package{
+	return &types.Package{
 		GoPackagePath: goPackagePath,
 		URL:           repoRoot.Repo,
 		// It may feel appealing to use output.Rev to get the full git hash
