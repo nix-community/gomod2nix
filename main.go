@@ -14,14 +14,23 @@ func main() {
 
 	flag.Parse()
 
-	numWorkers := 20
-	keepGoing := true
-	directory := "./"
+	numWorkers := 1
+	keepGoing := false
+	// directory := "./"
+	directory := "./testdata/vuls"
 	outFile := "gomod2nix.toml"
 
-	pkgs, err := fetch.FetchPackages(filepath.Join(directory, "go.mod"), filepath.Join(directory, "go.sum"), numWorkers, keepGoing)
+	goModPath := filepath.Join(directory, "go.mod")
+	goSumPath := filepath.Join(directory, "go.sum")
+	goMod2NixPath := "./gomod2nix.toml"
+
+	pkgs, err := fetch.FetchPackages(goModPath, goSumPath, goMod2NixPath, numWorkers, keepGoing)
 	if err != nil {
 		panic(err)
+	}
+
+	if true {
+		panic("Success")
 	}
 
 	// output, err := buildgopackage.Marshal(pkgs)

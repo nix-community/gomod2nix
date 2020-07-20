@@ -53,5 +53,14 @@ func LoadGomod2Nix(filePath string) map[string]*types.Package {
 		return ret
 	}
 
+	for k, v := range result {
+		ret[k] = &types.Package{
+			GoPackagePath: k,
+			URL:           v.URL,
+			Rev:           v.Rev,
+			Sha256:        v.Sha256,
+		}
+	}
+
 	return ret
 }

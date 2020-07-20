@@ -3,6 +3,7 @@ package fetch
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tweag/gomod2nix/formats/gomod2nix"
 	"github.com/tweag/gomod2nix/types"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/vcs"
@@ -23,9 +24,9 @@ type packageResult struct {
 	err error
 }
 
-func worker(id int, replace map[string]string, jobs <-chan *packageJob, results chan<- *packageResult) {
+func worker(id int, cache map[string]*types.Package, jobs <-chan *packageJob, results chan<- *packageResult) {
 	for j := range jobs {
-		pkg, err := fetchPackage(j.importPath, j.goPackagePath, j.rev)
+		pkg, err := fetchPackage(cache, j.importPath, j.goPackagePath, j.rev)
 		results <- &packageResult{
 			err: err,
 			pkg: pkg,
@@ -33,7 +34,12 @@ func worker(id int, replace map[string]string, jobs <-chan *packageJob, results 
 	}
 }
 
-func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
+// It's a relatively common idiom to tag storage/v1.0.0
+func mkNewRev(goPackagePath string, repoRoot *vcs.RepoRoot, rev string) string {
+	return fmt.Sprintf("%s/%s", strings.TrimPrefix(goPackagePath, repoRoot.Root+"/"), rev)
+}
+
+func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
 
 	// Read go.mod
 	data, err := ioutil.ReadFile(goModPath)
@@ -46,6 +52,8 @@ func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing
 	if err != nil {
 		return nil, err
 	}
+
+	cache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
 
 	// // Parse require
 	// require := make(map[string]module.Version)
@@ -72,7 +80,7 @@ func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing
 	jobs := make(chan *packageJob, numJobs)
 	results := make(chan *packageResult, numJobs)
 	for i := 0; i <= numWorkers; i++ {
-		go worker(i, replace, jobs, results)
+		go worker(i, cache, jobs, results)
 	}
 
 	for goPackagePath, rev := range revs {
@@ -112,10 +120,20 @@ func FetchPackages(goModPath string, goSumPath string, numWorkers int, keepGoing
 	return pkgs, nil
 }
 
-func fetchPackage(importPath string, goPackagePath string, rev string) (*types.Package, error) {
+func fetchPackage(cache map[string]*types.Package, importPath string, goPackagePath string, rev string) (*types.Package, error) {
 	repoRoot, err := vcs.RepoRootForImportPath(importPath, false)
 	if err != nil {
 		return nil, err
+	}
+
+	newRev := mkNewRev(goPackagePath, repoRoot, rev)
+	cached, ok := cache[goPackagePath]
+	if ok {
+		for _, rev := range []string{rev, newRev} {
+			if cached.Rev == rev {
+				return cached, nil
+			}
+		}
 	}
 
 	if repoRoot.VCS.Name != "Git" {
@@ -139,10 +157,7 @@ func fetchPackage(importPath string, goPackagePath string, rev string) (*types.P
 		"--url", repoRoot.Repo,
 		"--rev", rev).Output()
 	if err != nil {
-		// It's a relatively common idiom to tag storage/v1.0.0
-		newRev := fmt.Sprintf("%s/%s", strings.TrimPrefix(goPackagePath, repoRoot.Root+"/"), rev)
 		originalErr := err
-
 		stdout, err = exec.Command(
 			"nix-prefetch-git",
 			"--quiet",
