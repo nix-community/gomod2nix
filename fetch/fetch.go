@@ -3,6 +3,7 @@ package fetch
 import (
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/tweag/gomod2nix/formats/buildgopackage"
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
 	"github.com/tweag/gomod2nix/types"
@@ -26,7 +27,14 @@ type packageResult struct {
 }
 
 func worker(id int, caches []map[string]*types.Package, jobs <-chan *packageJob, results chan<- *packageResult) {
+	log.WithField("workerId", id).Info("Starting worker process")
+
 	for j := range jobs {
+		log.WithFields(log.Fields{
+			"workerId":      id,
+			"goPackagePath": j.goPackagePath,
+		}).Info("Worker received job")
+
 		pkg, err := fetchPackage(caches, j.importPath, j.goPackagePath, j.rev)
 		results <- &packageResult{
 			err: err,
@@ -42,6 +50,10 @@ func mkNewRev(goPackagePath string, repoRoot *vcs.RepoRoot, rev string) string {
 
 func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, depsNixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
 
+	log.WithFields(log.Fields{
+		"modPath": goModPath,
+	}).Info("Parsing go.mod")
+
 	// Read go.mod
 	data, err := ioutil.ReadFile(goModPath)
 	if err != nil {
@@ -54,9 +66,14 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 		return nil, err
 	}
 
-	caches := []map[string]*types.Package{
-		gomod2nix.LoadGomod2Nix(goMod2NixPath),
-		buildgopackage.LoadDepsNix(depsNixPath),
+	caches := []map[string]*types.Package{}
+	goModCache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
+	if len(goModCache) > 0 {
+		caches = append(caches, goModCache)
+	}
+	buildGoCache := buildgopackage.LoadDepsNix(depsNixPath)
+	if len(buildGoCache) > 0 {
+		caches = append(caches, buildGoCache)
 	}
 
 	// // Parse require
@@ -71,6 +88,10 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 		replace[repl.Old.Path] = repl.New.Path
 	}
 
+	log.WithFields(log.Fields{
+		"sumPath": goSumPath,
+	}).Info("Parsing go.sum")
+
 	revs, err := parseGoSum(goSumPath)
 	if err != nil {
 		return nil, err
@@ -81,12 +102,18 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 		numWorkers = numJobs
 	}
 
+	log.WithFields(log.Fields{
+		"numWorkers": numWorkers,
+	}).Info("Starting worker processes")
 	jobs := make(chan *packageJob, numJobs)
 	results := make(chan *packageResult, numJobs)
 	for i := 0; i <= numWorkers; i++ {
 		go worker(i, caches, jobs, results)
 	}
 
+	log.WithFields(log.Fields{
+		"numJobs": numJobs,
+	}).Info("Queuing jobs")
 	for goPackagePath, rev := range revs {
 		// Check for replacement path (only original goPackagePath is recorded in go.sum)
 		importPath := goPackagePath
@@ -105,6 +132,12 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	var pkgs []*types.Package
 	for i := 1; i <= numJobs; i++ {
 		result := <-results
+
+		log.WithFields(log.Fields{
+			"current": i,
+			"total":   numJobs,
+		}).Info("Received finished job")
+
 		if result.err != nil {
 			if keepGoing {
 				fmt.Println(result.err)
@@ -131,12 +164,22 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 	}
 
 	newRev := mkNewRev(goPackagePath, repoRoot, rev)
-	for _, cache := range caches {
-		cached, ok := cache[goPackagePath]
-		if ok {
-			for _, rev := range []string{rev, newRev} {
-				if cached.Rev == rev {
-					return cached, nil
+	if len(caches) > 0 {
+
+		log.WithFields(log.Fields{
+			"goPackagePath": goPackagePath,
+		}).Info("Checking previous invocation cache")
+
+		for _, cache := range caches {
+			cached, ok := cache[goPackagePath]
+			if ok {
+				for _, rev := range []string{rev, newRev} {
+					if cached.Rev == rev {
+						log.WithFields(log.Fields{
+							"goPackagePath": goPackagePath,
+						}).Info("Returning cached entry")
+						return cached, nil
+					}
 				}
 			}
 		}
@@ -156,6 +199,11 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		// deepClone       bool
 		// leaveDotGit     bool
 	}
+
+	log.WithFields(log.Fields{
+		"goPackagePath": goPackagePath,
+		"rev":           rev,
+	}).Info("Cache miss, fetching")
 	stdout, err := exec.Command(
 		"nix-prefetch-git",
 		"--quiet",
@@ -163,6 +211,10 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		"--url", repoRoot.Repo,
 		"--rev", rev).Output()
 	if err != nil {
+		log.WithFields(log.Fields{
+			"goPackagePath": goPackagePath,
+			"rev":           newRev,
+		}).Info("Fetching failed, retrying with different rev format")
 		originalErr := err
 		stdout, err = exec.Command(
 			"nix-prefetch-git",
@@ -171,6 +223,9 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 			"--url", repoRoot.Repo,
 			"--rev", newRev).Output()
 		if err != nil {
+			log.WithFields(log.Fields{
+				"goPackagePath": goPackagePath,
+			}).Error("Fetching failed")
 			return nil, originalErr
 		}
 
