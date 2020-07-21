@@ -9,7 +9,7 @@ import (
 )
 
 func parseGoSum(file string) (map[string]string, error) {
-	commitShaRev := regexp.MustCompile(`^v\d+\.\d+\.\d+-(?:\d+\.)?[0-9]{14}-(.*?)$`)
+	commitShaRev := regexp.MustCompile(`v\d+\.\d+\.\d+-[\d+\.a-zA-Z]*?[0-9]{14}-(.*?)$`)
 
 	// Read go.mod
 	data, err := ioutil.ReadFile(file)
