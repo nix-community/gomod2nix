@@ -40,6 +40,10 @@ func Marshal(pkgs []*types.Package) ([]byte, error) {
 func LoadDepsNix(filePath string) map[string]*types.Package {
 	ret := make(map[string]*types.Package)
 
+	if filePath == "" {
+		return ret
+	}
+
 	stat, err := os.Stat(filePath)
 	if err != nil {
 		return ret

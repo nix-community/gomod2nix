@@ -3,6 +3,7 @@ package fetch
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tweag/gomod2nix/formats/buildgopackage"
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
 	"github.com/tweag/gomod2nix/types"
 	"golang.org/x/mod/modfile"
@@ -24,9 +25,9 @@ type packageResult struct {
 	err error
 }
 
-func worker(id int, cache map[string]*types.Package, jobs <-chan *packageJob, results chan<- *packageResult) {
+func worker(id int, caches []map[string]*types.Package, jobs <-chan *packageJob, results chan<- *packageResult) {
 	for j := range jobs {
-		pkg, err := fetchPackage(cache, j.importPath, j.goPackagePath, j.rev)
+		pkg, err := fetchPackage(caches, j.importPath, j.goPackagePath, j.rev)
 		results <- &packageResult{
 			err: err,
 			pkg: pkg,
@@ -39,7 +40,7 @@ func mkNewRev(goPackagePath string, repoRoot *vcs.RepoRoot, rev string) string {
 	return fmt.Sprintf("%s/%s", strings.TrimPrefix(goPackagePath, repoRoot.Root+"/"), rev)
 }
 
-func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
+func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, depsNixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
 
 	// Read go.mod
 	data, err := ioutil.ReadFile(goModPath)
@@ -53,7 +54,10 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 		return nil, err
 	}
 
-	cache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
+	caches := []map[string]*types.Package{
+		gomod2nix.LoadGomod2Nix(goMod2NixPath),
+		buildgopackage.LoadDepsNix(depsNixPath),
+	}
 
 	// // Parse require
 	// require := make(map[string]module.Version)
@@ -80,7 +84,7 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 	jobs := make(chan *packageJob, numJobs)
 	results := make(chan *packageResult, numJobs)
 	for i := 0; i <= numWorkers; i++ {
-		go worker(i, cache, jobs, results)
+		go worker(i, caches, jobs, results)
 	}
 
 	for goPackagePath, rev := range revs {
@@ -120,18 +124,20 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 	return pkgs, nil
 }
 
-func fetchPackage(cache map[string]*types.Package, importPath string, goPackagePath string, rev string) (*types.Package, error) {
+func fetchPackage(caches []map[string]*types.Package, importPath string, goPackagePath string, rev string) (*types.Package, error) {
 	repoRoot, err := vcs.RepoRootForImportPath(importPath, false)
 	if err != nil {
 		return nil, err
 	}
 
 	newRev := mkNewRev(goPackagePath, repoRoot, rev)
-	cached, ok := cache[goPackagePath]
-	if ok {
-		for _, rev := range []string{rev, newRev} {
-			if cached.Rev == rev {
-				return cached, nil
+	for _, cache := range caches {
+		cached, ok := cache[goPackagePath]
+		if ok {
+			for _, rev := range []string{rev, newRev} {
+				if cached.Rev == rev {
+					return cached, nil
+				}
 			}
 		}
 	}

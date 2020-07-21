@@ -40,6 +40,10 @@ func Marshal(pkgs []*types.Package) ([]byte, error) {
 func LoadGomod2Nix(filePath string) map[string]*types.Package {
 	ret := make(map[string]*types.Package)
 
+	if filePath == "" {
+		return ret
+	}
+
 	b, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Println(err)
