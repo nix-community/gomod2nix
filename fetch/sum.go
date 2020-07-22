@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"regexp"
 	"strings"
 )
 
 func parseGoSum(file string) (map[string]string, error) {
-	commitShaRev := regexp.MustCompile(`v\d+\.\d+\.\d+-[\d+\.a-zA-Z]*?[0-9]{14}-(.*?)$`)
 
 	// Read go.mod
 	data, err := ioutil.ReadFile(file)
@@ -28,12 +26,7 @@ func parseGoSum(file string) (map[string]string, error) {
 			return nil, fmt.Errorf("malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
 		}
 
-		rev := strings.TrimSuffix(strings.TrimSuffix(f[1], "/go.mod"), "+incompatible")
-		if commitShaRev.MatchString(rev) {
-			rev = commitShaRev.FindAllStringSubmatch(rev, -1)[0][1]
-		}
-
-		pkgs[f[0]] = rev
+		pkgs[f[0]] = strings.TrimSuffix(f[1], "/go.mod")
 	}
 
 	return pkgs, nil

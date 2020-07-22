@@ -8,9 +8,11 @@ import (
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
 	"github.com/tweag/gomod2nix/types"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/vcs"
 	"io/ioutil"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -18,7 +20,7 @@ import (
 type packageJob struct {
 	importPath    string
 	goPackagePath string
-	rev           string
+	sumVersion    string
 }
 
 type packageResult struct {
@@ -35,17 +37,12 @@ func worker(id int, caches []map[string]*types.Package, jobs <-chan *packageJob,
 			"goPackagePath": j.goPackagePath,
 		}).Info("Worker received job")
 
-		pkg, err := fetchPackage(caches, j.importPath, j.goPackagePath, j.rev)
+		pkg, err := fetchPackage(caches, j.importPath, j.goPackagePath, j.sumVersion)
 		results <- &packageResult{
 			err: err,
 			pkg: pkg,
 		}
 	}
-}
-
-// It's a relatively common idiom to tag storage/v1.0.0
-func mkNewRev(goPackagePath string, repoRoot *vcs.RepoRoot, rev string) string {
-	return fmt.Sprintf("%s/%s", strings.TrimPrefix(goPackagePath, repoRoot.Root+"/"), rev)
 }
 
 func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, depsNixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
@@ -92,12 +89,12 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 		"sumPath": goSumPath,
 	}).Info("Parsing go.sum")
 
-	revs, err := parseGoSum(goSumPath)
+	sumVersions, err := parseGoSum(goSumPath)
 	if err != nil {
 		return nil, err
 	}
 
-	numJobs := len(revs)
+	numJobs := len(sumVersions)
 	if numJobs < numWorkers {
 		numWorkers = numJobs
 	}
@@ -114,17 +111,18 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	log.WithFields(log.Fields{
 		"numJobs": numJobs,
 	}).Info("Queuing jobs")
-	for goPackagePath, rev := range revs {
+	for goPackagePath, sumVersion := range sumVersions {
 		// Check for replacement path (only original goPackagePath is recorded in go.sum)
 		importPath := goPackagePath
 		v, ok := replace[goPackagePath]
 		if ok {
 			importPath = v
 		}
+
 		jobs <- &packageJob{
 			importPath:    importPath,
 			goPackagePath: goPackagePath,
-			rev:           rev,
+			sumVersion:    sumVersion,
 		}
 	}
 	close(jobs)
@@ -157,13 +155,27 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	return pkgs, nil
 }
 
-func fetchPackage(caches []map[string]*types.Package, importPath string, goPackagePath string, rev string) (*types.Package, error) {
+func fetchPackage(caches []map[string]*types.Package, importPath string, goPackagePath string, sumVersion string) (*types.Package, error) {
 	repoRoot, err := vcs.RepoRootForImportPath(importPath, false)
 	if err != nil {
 		return nil, err
 	}
 
-	newRev := mkNewRev(goPackagePath, repoRoot, rev)
+	commitShaRev := regexp.MustCompile(`v\d+\.\d+\.\d+-[\d+\.a-zA-Z]*?[0-9]{14}-(.*?)$`)
+	rev := strings.TrimSuffix(sumVersion, "+incompatible")
+	if commitShaRev.MatchString(rev) {
+		rev = commitShaRev.FindAllStringSubmatch(rev, -1)[0][1]
+	}
+
+	goPackagePathPrefix, _, _ := module.SplitPathVersion(goPackagePath)
+
+	// Relative path within the repo
+	relPath := strings.TrimPrefix(goPackagePathPrefix, repoRoot.Root+"/")
+	if relPath == goPackagePathPrefix {
+		relPath = ""
+	}
+
+	newRev := fmt.Sprintf("%s/%s", relPath, rev)
 	if len(caches) > 0 {
 
 		log.WithFields(log.Fields{
@@ -242,13 +254,12 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 	return &types.Package{
 		GoPackagePath: goPackagePath,
 		URL:           repoRoot.Repo,
-		// It may feel appealing to use output.Rev to get the full git hash
-		// However, this has the major downside of not being able to be checked against an
-		// older output file (as the revs) don't match
-		//
-		// This is used to skip fetching where the previous package path & rev are still the same
-		Rev:    rev,
-		Sha256: output.Sha256,
+		Rev:           output.Rev,
+		Sha256:        output.Sha256,
+		// This is used to skip fetching where the previous package path & versions are still the same
+		// It's also used to construct the vendor directory in the Nix build
+		SumVersion: sumVersion,
+		RelPath:    relPath,
 	}, nil
 
 }

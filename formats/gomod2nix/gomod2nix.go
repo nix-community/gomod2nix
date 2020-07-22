@@ -8,11 +8,17 @@ import (
 	"io/ioutil"
 )
 
-type packageT struct {
+type fetchInfo struct {
 	Type   string `toml:"type"`
 	URL    string `toml:"url"`
 	Rev    string `toml:"rev"`
 	Sha256 string `toml:"sha256"`
+}
+
+type packageT struct {
+	SumVersion string     `toml:"sumVersion"`
+	RelPath    string     `toml:"relPath"`
+	Fetch      *fetchInfo `toml:"fetch"`
 }
 
 func Marshal(pkgs []*types.Package) ([]byte, error) {
@@ -20,10 +26,14 @@ func Marshal(pkgs []*types.Package) ([]byte, error) {
 
 	for _, pkg := range pkgs {
 		result[pkg.GoPackagePath] = &packageT{
-			Type:   "git",
-			URL:    pkg.URL,
-			Rev:    pkg.Rev,
-			Sha256: pkg.Sha256,
+			SumVersion: pkg.SumVersion,
+			RelPath:    pkg.RelPath,
+			Fetch: &fetchInfo{
+				Type:   "git",
+				URL:    pkg.URL,
+				Rev:    pkg.Rev,
+				Sha256: pkg.Sha256,
+			},
 		}
 	}
 
@@ -60,9 +70,11 @@ func LoadGomod2Nix(filePath string) map[string]*types.Package {
 	for k, v := range result {
 		ret[k] = &types.Package{
 			GoPackagePath: k,
-			URL:           v.URL,
-			Rev:           v.Rev,
-			Sha256:        v.Sha256,
+			URL:           v.Fetch.URL,
+			Rev:           v.Fetch.Rev,
+			Sha256:        v.Fetch.Sha256,
+			SumVersion:    v.SumVersion,
+			RelPath:       v.RelPath,
 		}
 	}
 

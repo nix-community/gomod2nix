@@ -5,4 +5,6 @@ type Package struct {
 	URL           string
 	Rev           string
 	Sha256        string
+	SumVersion    string
+	RelPath       string
 }
