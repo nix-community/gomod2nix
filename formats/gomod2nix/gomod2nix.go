@@ -18,6 +18,7 @@ type fetchInfo struct {
 type packageT struct {
 	SumVersion string     `toml:"sumVersion"`
 	RelPath    string     `toml:"relPath"`
+	VendorPath string     `toml:"vendorPath"`
 	Fetch      *fetchInfo `toml:"fetch"`
 }
 
@@ -26,6 +27,7 @@ func Marshal(pkgs []*types.Package) ([]byte, error) {
 
 	for _, pkg := range pkgs {
 		result[pkg.GoPackagePath] = &packageT{
+			VendorPath: pkg.VendorPath,
 			SumVersion: pkg.SumVersion,
 			RelPath:    pkg.RelPath,
 			Fetch: &fetchInfo{
@@ -75,6 +77,7 @@ func LoadGomod2Nix(filePath string) map[string]*types.Package {
 			Sha256:        v.Fetch.Sha256,
 			SumVersion:    v.SumVersion,
 			RelPath:       v.RelPath,
+			VendorPath:    v.VendorPath,
 		}
 	}
 

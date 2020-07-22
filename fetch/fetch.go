@@ -73,16 +73,10 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 		caches = append(caches, buildGoCache)
 	}
 
-	// // Parse require
-	// require := make(map[string]module.Version)
-	// for _, req := range mod.Require {
-	// 	require[req.Mod.Path] = req.Mod
-	// }
-
 	// Map repos -> replacement repo
 	replace := make(map[string]string)
 	for _, repl := range mod.Replace {
-		replace[repl.Old.Path] = repl.New.Path
+		replace[repl.New.Path] = repl.Old.Path
 	}
 
 	log.WithFields(log.Fields{
@@ -111,12 +105,12 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	log.WithFields(log.Fields{
 		"numJobs": numJobs,
 	}).Info("Queuing jobs")
-	for goPackagePath, sumVersion := range sumVersions {
+	for importPath, sumVersion := range sumVersions {
 		// Check for replacement path (only original goPackagePath is recorded in go.sum)
-		importPath := goPackagePath
+		goPackagePath := importPath
 		v, ok := replace[goPackagePath]
 		if ok {
-			importPath = v
+			goPackagePath = v
 		}
 
 		jobs <- &packageJob{
@@ -251,6 +245,12 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		return nil, err
 	}
 
+	vendorPath := ""
+	if importPath != goPackagePath {
+		importPathPrefix, _, _ := module.SplitPathVersion(importPath)
+		vendorPath = importPathPrefix
+	}
+
 	return &types.Package{
 		GoPackagePath: goPackagePath,
 		URL:           repoRoot.Repo,
@@ -260,6 +260,7 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		// It's also used to construct the vendor directory in the Nix build
 		SumVersion: sumVersion,
 		RelPath:    relPath,
+		VendorPath: vendorPath,
 	}, nil
 
 }

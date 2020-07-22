@@ -7,4 +7,5 @@ type Package struct {
 	Sha256        string
 	SumVersion    string
 	RelPath       string
+	VendorPath    string
 }
