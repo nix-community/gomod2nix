@@ -17,8 +17,8 @@ type fetchInfo struct {
 
 type packageT struct {
 	SumVersion string     `toml:"sumVersion"`
-	RelPath    string     `toml:"relPath"`
-	VendorPath string     `toml:"vendorPath"`
+	RelPath    string     `toml:"relPath,omitempty"`
+	VendorPath string     `toml:"vendorPath,omitempty"`
 	Fetch      *fetchInfo `toml:"fetch"`
 }
 

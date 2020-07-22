@@ -11,7 +11,9 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/vcs"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -161,7 +163,7 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		rev = commitShaRev.FindAllStringSubmatch(rev, -1)[0][1]
 	}
 
-	goPackagePathPrefix, _, _ := module.SplitPathVersion(goPackagePath)
+	goPackagePathPrefix, pathMajor, _ := module.SplitPathVersion(goPackagePath)
 
 	// Relative path within the repo
 	relPath := strings.TrimPrefix(goPackagePathPrefix, repoRoot.Root+"/")
@@ -169,9 +171,7 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		relPath = ""
 	}
 
-	newRev := fmt.Sprintf("%s/%s", relPath, rev)
 	if len(caches) > 0 {
-
 		log.WithFields(log.Fields{
 			"goPackagePath": goPackagePath,
 		}).Info("Checking previous invocation cache")
@@ -179,13 +179,11 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		for _, cache := range caches {
 			cached, ok := cache[goPackagePath]
 			if ok {
-				for _, rev := range []string{rev, newRev} {
-					if cached.Rev == rev {
-						log.WithFields(log.Fields{
-							"goPackagePath": goPackagePath,
-						}).Info("Returning cached entry")
-						return cached, nil
-					}
+				if cached.SumVersion == sumVersion {
+					log.WithFields(log.Fields{
+						"goPackagePath": goPackagePath,
+					}).Info("Returning cached entry")
+					return cached, nil
 				}
 			}
 		}
@@ -199,7 +197,7 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		URL    string `json:"url"`
 		Rev    string `json:"rev"`
 		Sha256 string `json:"sha256"`
-		// path   string
+		Path   string `json:"path"`
 		// date   string
 		// fetchSubmodules bool
 		// deepClone       bool
@@ -217,6 +215,8 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		"--url", repoRoot.Repo,
 		"--rev", rev).Output()
 	if err != nil {
+		newRev := fmt.Sprintf("%s/%s", relPath, rev)
+
 		log.WithFields(log.Fields{
 			"goPackagePath": goPackagePath,
 			"rev":           newRev,
@@ -239,7 +239,6 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 	}
 
 	var output *prefetchOutput
-
 	err = json.Unmarshal(stdout, &output)
 	if err != nil {
 		return nil, err
@@ -247,8 +246,16 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 
 	vendorPath := ""
 	if importPath != goPackagePath {
-		importPathPrefix, _, _ := module.SplitPathVersion(importPath)
-		vendorPath = importPathPrefix
+		vendorPath = importPath
+	}
+
+	if relPath == "" && pathMajor != "" {
+		p := filepath.Join(output.Path, pathMajor)
+		_, err := os.Stat(p)
+		if err == nil {
+			fmt.Println(pathMajor)
+			relPath = strings.TrimPrefix(pathMajor, "/")
+		}
 	}
 
 	return &types.Package{
