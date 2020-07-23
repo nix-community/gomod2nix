@@ -14,6 +14,7 @@ let
   buildGoApplication =
     {
       modules
+      , src
       , CGO_ENABLED ? "0"
       , nativeBuildInputs ? []
       , allowGoReference ? false
@@ -23,34 +24,29 @@ let
     }@attrs: let
       modulesStruct = builtins.fromTOML (builtins.readFile modules);
 
-      # TODO: This is a giant inefficient hack
-      # Replace this with something that's _like_ buildEnv but doesn't need a
-      # runCommand per input
-      vendorEnv = buildEnv {
-        # Better method for this?
-        ignoreCollisions = true;
+      vendorEnv = runCommand "vendor-env" {
+        nativeBuildInputs = [ pkgs.go ];
+        json = builtins.toJSON modulesStruct;
 
-        # nativeBuildInputs = [ go ];
-
-        name = "vendor-env";
-        paths = lib.mapAttrsToList (goPackagePath: meta: let
+        sources = builtins.toJSON (lib.mapAttrs (goPackagePath: meta: let
           src = fetchgit {
             inherit (meta.fetch) url sha256 rev;
             fetchSubmodules = true;
           };
-          path = goPackagePath;
           srcPath = "${src}/${meta.relPath or ""}";
-          mkCommand = outpath: ''
-            mkdir -p $out/$(dirname ${outpath})
-            ln -s ${srcPath} $out/${outpath}
-          '';
+        in srcPath) modulesStruct);
 
-        in runCommand "${src.name}-env" {} ''
-          ${mkCommand goPackagePath}
-          ${if lib.hasAttr "vendorPath" meta then (mkCommand meta.vendorPath) else ""}
-        '') modulesStruct;
+        passAsFile = [ "json" "sources" ];
+      } (''
+        mkdir vendor
 
-      };
+        export GOCACHE=$TMPDIR/go-cache
+        export GOPATH="$TMPDIR/go"
+
+        go run ${./symlink.go}
+
+        mv vendor $out
+      '');
 
       removeReferences = [ ] ++ lib.optional (!allowGoReference) go;
 
@@ -58,7 +54,6 @@ let
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
-
         inherit CGO_ENABLED;
 
         GO_NO_VENDOR_CHECKS = "1";
@@ -186,6 +181,8 @@ in buildGoApplication {
 
   pname = "dummyapp";
   version = "0.1";
+
+  CGO_ENABLED = "1";
 
   src = ./testdata/vuls;
   modules = ./testdata/vuls/gomod2nix.toml;
