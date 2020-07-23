@@ -1,8 +1,13 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ stdenv
+, runCommand
+, buildEnv
+, lib
+, fetchgit
+, removeReferencesTo
+, pkgs
+}:
 
 let
-  inherit (pkgs) stdenv runCommand buildEnv lib fetchgit removeReferencesTo;
-
   # Patch go to lift restrictions on
   # This patch should be upstreamed in Nixpkgs & in Go proper
   go = pkgs.go.overrideAttrs(old: {
@@ -25,7 +30,7 @@ let
       modulesStruct = builtins.fromTOML (builtins.readFile modules);
 
       vendorEnv = runCommand "vendor-env" {
-        nativeBuildInputs = [ pkgs.go ];
+        nativeBuildInputs = [ go ];
         json = builtins.toJSON modulesStruct;
 
         sources = builtins.toJSON (lib.mapAttrs (goPackagePath: meta: let
@@ -177,23 +182,4 @@ let
 
     in package;
 
-in buildGoApplication {
-
-  pname = "dummyapp";
-  version = "0.1";
-
-  CGO_ENABLED = "1";
-
-  src = ./testdata/vuls;
-  modules = ./testdata/vuls/gomod2nix.toml;
-
-  # src = ./dummyapp;
-  # modules = ./dummyapp/gomod2nix.toml;
-
-  # Default modules is relative to src?
-  # modules = builtins.readFile ./gomod2nix.toml;
-
-  # I don't think we need this?
-  # goPackagePath = "github.com/mkchoi212/fac";
-
-}
+in buildGoApplication
