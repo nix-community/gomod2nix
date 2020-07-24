@@ -14,4 +14,13 @@ in pkgs.buildGoApplication {
   version = "0.1";
   src = lib.cleanSource ./.;
   modules = ./gomod2nix.toml;
+
+  nativeBuildInputs = [
+    pkgs.makeWrapper
+  ];
+
+  postInstall = ''
+    wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ pkgs.nix-prefetch-git ]}
+    rm -f $out/bin/builder
+  '';
 }
