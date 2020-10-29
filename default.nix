@@ -1,15 +1,10 @@
-let
-  pkgs = import <nixpkgs> {
-    overlays = [
-      (self: super: {
-        buildGoApplication = super.callPackage ./builder { };
-      })
-    ];
-  };
+{ pkgs ? import <nixpkgs> { } }:
 
+let
+  buildGoApplication = pkgs.buildGoApplication or pkgs.callPackage ./builder { };
   inherit (pkgs) lib;
 
-in pkgs.buildGoApplication {
+in buildGoApplication {
   pname = "gomod2nix";
   version = "0.1";
   src = lib.cleanSource ./.;
