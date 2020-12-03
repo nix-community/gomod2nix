@@ -29,4 +29,4 @@ jobs:
     steps:
     - uses: cachix/install-nix-action@v12
     - uses: actions/checkout@v1
-    - run: make
+    - run: nix-shell --run 'make'

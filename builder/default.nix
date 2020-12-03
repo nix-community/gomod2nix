@@ -6,52 +6,59 @@
 , removeReferencesTo
 , pkgs
 }:
-
 let
   # Patch go to lift restrictions on
   # This patch should be upstreamed in Nixpkgs & in Go proper
-  go = pkgs.go.overrideAttrs(old: {
+  go = pkgs.go.overrideAttrs (old: {
     patches = old.patches ++ [ ./go_no_vendor_checks.patch ];
   });
 
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
 
   buildGoApplication =
-    {
-      modules
-      , src
-      , CGO_ENABLED ? "0"
-      , nativeBuildInputs ? []
-      , allowGoReference ? false
-      , meta ? {}
-      , passthru ? {}
-      , ...
-    }@attrs: let
+    { modules
+    , src
+    , CGO_ENABLED ? "0"
+    , nativeBuildInputs ? [ ]
+    , allowGoReference ? false
+    , meta ? { }
+    , passthru ? { }
+    , ...
+    }@attrs:
+    let
       modulesStruct = builtins.fromTOML (builtins.readFile modules);
 
-      vendorEnv = runCommand "vendor-env" {
-        nativeBuildInputs = [ go ];
-        json = builtins.toJSON modulesStruct;
+      vendorEnv = runCommand "vendor-env"
+        {
+          nativeBuildInputs = [ go ];
+          json = builtins.toJSON modulesStruct;
 
-        sources = builtins.toJSON (lib.mapAttrs (goPackagePath: meta: let
-          src = fetchgit {
-            inherit (meta.fetch) url sha256 rev;
-            fetchSubmodules = true;
-          };
-          srcPath = "${src}/${meta.relPath or ""}";
-        in srcPath) modulesStruct);
+          sources = builtins.toJSON (lib.mapAttrs
+            (goPackagePath: meta:
+              let
+                src = fetchgit {
+                  inherit (meta.fetch) url sha256 rev;
+                  fetchSubmodules = true;
+                };
+                srcPath = "${src}/${meta.relPath or ""}";
+              in
+              srcPath)
+            modulesStruct);
 
-        passAsFile = [ "json" "sources" ];
-      } (''
-        mkdir vendor
+          passAsFile = [ "json" "sources" ];
+        }
+        (
+          ''
+            mkdir vendor
 
-        export GOCACHE=$TMPDIR/go-cache
-        export GOPATH="$TMPDIR/go"
+            export GOCACHE=$TMPDIR/go-cache
+            export GOPATH="$TMPDIR/go"
 
-        go run ${./symlink.go}
+            go run ${./symlink.go}
 
-        mv vendor $out
-      '');
+            mv vendor $out
+          ''
+        );
 
       removeReferences = [ ] ++ lib.optional (!allowGoReference) go;
 
@@ -180,6 +187,8 @@ let
         meta = { platforms = go.meta.platforms or lib.platforms.all; } // meta;
       });
 
-    in package;
+    in
+    package;
 
-in buildGoApplication
+in
+buildGoApplication
