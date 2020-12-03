@@ -1,21 +1,17 @@
-{ pkgs ? import <nixpkgs> { } }:
+{ buildGoApplication, lib, makeWrapper, nix-prefetch-git }:
 
-let
-  buildGoApplication = pkgs.buildGoApplication or pkgs.callPackage ./builder { };
-  inherit (pkgs) lib;
-
-in buildGoApplication {
+buildGoApplication {
   pname = "gomod2nix";
   version = "0.1";
   src = lib.cleanSource ./.;
   modules = ./gomod2nix.toml;
 
-  nativeBuildInputs = [
-    pkgs.makeWrapper
-  ];
+  subPackages = [ "." ];
+
+  nativeBuildInputs = [ makeWrapper ];
 
   postInstall = ''
-    wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ pkgs.nix-prefetch-git ]}
+    wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ nix-prefetch-git ]}
     rm -f $out/bin/builder
   '';
 }

@@ -29,7 +29,4 @@ jobs:
     steps:
     - uses: cachix/install-nix-action@v12
     - uses: actions/checkout@v1
-    - uses: cachix/cachix-action@v8
-      with:
-        name: gomod2nix
     - run: make
