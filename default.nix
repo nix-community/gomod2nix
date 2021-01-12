@@ -3,7 +3,10 @@
 buildGoApplication {
   pname = "gomod2nix";
   version = "0.1";
-  src = lib.cleanSource ./.;
+  src = lib.cleanSourceWith {
+    filter = name: type: ! lib.hasSuffix "tests" name;
+    src = lib.cleanSource ./.;
+  };
   modules = ./gomod2nix.toml;
 
   subPackages = [ "." ];
