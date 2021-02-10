@@ -4,14 +4,9 @@
 , lib
 , fetchgit
 , removeReferencesTo
-, pkgs
+, go
 }:
 let
-  # Patch go to lift restrictions on
-  # This patch should be upstreamed in Nixpkgs & in Go proper
-  go = pkgs.go.overrideAttrs (old: {
-    patches = old.patches ++ [ ./go_no_vendor_checks.patch ];
-  });
 
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
 
