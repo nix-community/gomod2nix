@@ -47,6 +47,67 @@ func worker(id int, caches []map[string]*types.Package, jobs <-chan *packageJob,
 	}
 }
 
+func ModuleVersion(importPath string) *module.Version {
+	s := strings.SplitN(importPath, "@", 2)
+	path := s[0]
+	version := ""
+	if len(s) == 2 {
+		version = s[1]
+	}
+
+	return &module.Version{ Path: path, Version: version }
+}
+
+func FetchRepo(moduleVersion *module.Version, dir string) (string, error) {
+	repoRoot, err := vcs.RepoRootForImportPath(moduleVersion.Path, false)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := repoRoot.VCS.Create(dir, repoRoot.Repo)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		err := repoRoot.VCS.Download(dir)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	version := moduleVersion.Version
+	if (version == "latest") {
+		version = ""
+	}
+	if err := repoRoot.VCS.TagSync(dir, version); err != nil {
+		return "", err
+	}
+
+	relpath, err := filepath.Rel(repoRoot.Root, moduleVersion.Path)
+	if err != nil {
+		return "", err
+	}
+	packagePath := filepath.Join(dir, relpath)
+
+	log.WithFields(log.Fields{
+		"repoRoot.Repo": repoRoot.Repo,
+		"packagePath": packagePath,
+	}).Info("Repo fetched")
+
+	goSumPath := filepath.Join(packagePath, "go.sum")
+	if _, err := os.Stat(goSumPath); err != nil {
+		cmd := exec.Command("go", "mod", "tidy")
+		cmd.Dir = packagePath
+		_, err = cmd.Output()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return packagePath, nil
+}
+
 func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, depsNixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
 
 	log.WithFields(log.Fields{

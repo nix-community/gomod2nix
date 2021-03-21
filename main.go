@@ -1,6 +1,7 @@
 package main // import "github.com/tweag/gomod2nix"
 
 import (
+	"crypto/sha1"
 	"flag"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -8,25 +9,53 @@ import (
 	"github.com/tweag/gomod2nix/formats/buildgopackage"
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 )
 
 func main() {
+	var prefetch = flag.String("prefetch", "", "Prefetch module in the form 'path' or 'path@version'")
 
 	var keepGoing = flag.Bool("keep-going", false, "Whether to panic or not if a rev cannot be resolved (default \"false\")")
-	var directory = flag.String("dir", "./", "Go project directory")
+	var directoryFlag = flag.String("dir", "", "Go project directory")
 	var maxJobs = flag.Int("jobs", 10, "Number of max parallel jobs")
 	var outDirFlag = flag.String("outdir", "", "output directory (if different from project directory)")
 	var format = flag.String("format", "gomod2nix", "output format (gomod2nix, buildgopackage)")
 	flag.Parse()
 
+	directory := *directoryFlag
 	outDir := *outDirFlag
-	if outDir == "" {
-		outDir = *directory
+
+	if *prefetch == "" {
+		if directory == "" {
+			directory = "./"
+		}
+		if outDir == "" {
+			outDir = directory
+		}
+	} else {
+		if directory == "" {
+			hash := sha1.Sum([]byte(*prefetch))
+			directory = filepath.Join(os.TempDir(), fmt.Sprintf("gomod2nix.%x", hash))
+		}
+		if outDir == "" {
+			outDir = "./"
+		}
+
+		log.WithFields(log.Fields{
+			"directory": directory,
+			"outDir": outDir,
+		}).Info(fmt.Sprintf("Prefetching '%s'", *prefetch))
+
+		packagePath, err := fetch.FetchRepo(fetch.ModuleVersion(*prefetch), directory)
+		if err != nil {
+			panic(err)
+		}
+		directory = packagePath
 	}
 
-	goSumPath := filepath.Join(*directory, "go.sum")
-	goModPath := filepath.Join(*directory, "go.mod")
+	goSumPath := filepath.Join(directory, "go.sum")
+	goModPath := filepath.Join(directory, "go.mod")
 
 	wrongFormatError := fmt.Errorf("Format not supported")
 
