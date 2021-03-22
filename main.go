@@ -34,8 +34,10 @@ func main() {
 			outDir = directory
 		}
 	} else {
+		moduleVersion := fetch.ModuleVersion(*prefetch)
+
 		if directory == "" {
-			hash := sha1.Sum([]byte(*prefetch))
+			hash := sha1.Sum([]byte(moduleVersion.Path))
 			directory = filepath.Join(os.TempDir(), fmt.Sprintf("gomod2nix.%x", hash))
 		}
 		if outDir == "" {
@@ -47,7 +49,7 @@ func main() {
 			"outDir": outDir,
 		}).Info(fmt.Sprintf("Prefetching '%s'", *prefetch))
 
-		packagePath, err := fetch.FetchRepo(fetch.ModuleVersion(*prefetch), directory)
+		packagePath, err := fetch.FetchRepo(moduleVersion, directory)
 		if err != nil {
 			panic(err)
 		}
