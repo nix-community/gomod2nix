@@ -1,4 +1,4 @@
-{ buildGoApplication, lib, makeWrapper, nix-prefetch-git }:
+{ buildGoApplication, lib, makeWrapper, go, nix-prefetch-git }:
 
 buildGoApplication {
   pname = "gomod2nix";
@@ -14,7 +14,7 @@ buildGoApplication {
   nativeBuildInputs = [ makeWrapper ];
 
   postInstall = ''
-    wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ nix-prefetch-git ]}
+    wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ go nix-prefetch-git ]}
     rm -f $out/bin/builder
   '';
 }
