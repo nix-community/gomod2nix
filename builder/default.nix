@@ -8,11 +8,14 @@
 }:
 let
 
+  parseGoMod = import ./parser.nix;
+
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
 
   buildGoApplication =
     { modules
     , src
+    , pwd ? null
     , CGO_ENABLED ? "0"
     , nativeBuildInputs ? [ ]
     , allowGoReference ? false
@@ -22,6 +25,22 @@ let
     }@attrs:
     let
       modulesStruct = builtins.fromTOML (builtins.readFile modules);
+
+      goMod = parseGoMod (builtins.readFile "${builtins.toString pwd}/go.mod");
+      localReplaceCommands =
+        let
+          localReplaceAttrs = lib.filterAttrs (n: v: lib.hasAttr "path" v) goMod.replace;
+          commands = (
+            lib.mapAttrsToList
+              (name: value: (
+                ''
+                  mkdir -p $(dirname vendor/${name})
+                  ln -s ${pwd + "/${value.path}"} vendor/${name}
+                ''
+              ))
+              localReplaceAttrs);
+        in
+        if pwd != null then commands else [ ];
 
       vendorEnv = runCommand "vendor-env"
         {
@@ -50,6 +69,9 @@ let
             export GOPATH="$TMPDIR/go"
 
             go run ${./symlink.go}
+            ${lib.concatStringsSep "\n" localReplaceCommands}
+
+            find vendor
 
             mv vendor $out
           ''
