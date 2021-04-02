@@ -12,14 +12,14 @@ let
     (lines: map
       (l:
         let
-          m = match "(.*)( |)//.*" l;
+          m = match "(.*)( )?//.*" l;
           hasComment = m != null;
         in
         stripStr (if hasComment then elemAt m 0 else l))
       lines)
 
     # Strip leading tabs characters
-    (lines: map (l: elemAt (match "(\t|)(.*)" l) 1) lines)
+    (lines: map (l: elemAt (match "(\t)?(.*)" l) 1) lines)
 
     # Filter empty lines
     (filter (l: l != ""))
@@ -102,7 +102,7 @@ let
         mapAttrs
           (n: v:
             let
-              m = match "=> (.+?) (.+)" v;
+              m = match "=> ([^ ]+) (.+)" v;
               m2 = match "=> (.*+)" v;
             in
             if m != null then {
