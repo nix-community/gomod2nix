@@ -1,17 +1,37 @@
 package main // import "github.com/tweag/gomod2nix"
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
+	"github.com/google/go-github/github"
 	log "github.com/sirupsen/logrus"
 	"github.com/tweag/gomod2nix/fetch"
 	"github.com/tweag/gomod2nix/formats/buildgopackage"
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
-	"io/ioutil"
-	"path/filepath"
+	"golang.org/x/oauth2"
 )
 
 func main() {
+	// optional support for using GH API
+	// try using GH_TOKEN, GITHUB_TOKEN env vars in order (same as GH's official CLI).
+	ghToken := os.Getenv("GH_TOKEN")
+	if len(ghToken) == 0 {
+		ghToken = os.Getenv("GITHUB_TOKEN")
+	}
+	if len(ghToken) > 0 {
+		ctx := context.Background()
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: ghToken},
+		)
+		tc := oauth2.NewClient(ctx, ts)
+		client := github.NewClient(tc)
+		fetch.GithubClient = client
+	}
 
 	var keepGoing = flag.Bool("keep-going", false, "Whether to panic or not if a rev cannot be resolved (default \"false\")")
 	var directory = flag.String("dir", "./", "Go project directory")
