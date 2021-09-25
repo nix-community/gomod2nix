@@ -1,7 +1,6 @@
 # Parse go.mod in Nix
 # Returns a Nix structure with the contents of the go.mod passed in
 # in normalised form.
-
 let
   inherit (builtins) elemAt mapAttrs split foldl' match filter typeOf;
 

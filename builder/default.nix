@@ -7,7 +7,6 @@
 , go
 }:
 let
-
   parseGoMod = import ./parser.nix;
 
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
@@ -21,6 +20,7 @@ let
     , allowGoReference ? false
     , meta ? { }
     , passthru ? { }
+    , customVendorSrc ? null
     , ...
     }@attrs:
     let
@@ -70,10 +70,17 @@ let
 
             go run ${./symlink.go}
             ${lib.concatStringsSep "\n" localReplaceCommands}
-
+          '' +
+          (if customVendorSrc == null
+          then ""
+          else ''
+            cp -R ${customVendorSrc}/* vendor/
+          ''
+          ) +
+          ''
             find vendor
 
-            mv vendor $out
+            cp -R vendor $out
           ''
         );
 
