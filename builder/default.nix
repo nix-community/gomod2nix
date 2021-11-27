@@ -79,7 +79,7 @@ let
 
       removeReferences = [ ] ++ lib.optional (!allowGoReference) go;
 
-      package = go.stdenv.mkDerivation (attrs // {
+      package = stdenv.mkDerivation (attrs // {
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
