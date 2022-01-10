@@ -10,16 +10,14 @@ let
   stripLines = initialLines: foldl' (acc: f: f acc) initialLines [
     # Strip comments
     (lines: map
-      (l:
-        let
-          m = match "(.*)( )?//.*" l;
-          hasComment = m != null;
-        in
-        stripStr (if hasComment then elemAt m 0 else l))
+      (l: stripStr (elemAt (splitString "//" l) 0))
       lines)
 
     # Strip leading tabs characters
     (lines: map (l: elemAt (match "(\t)?(.*)" l) 1) lines)
+
+    # Strip comment lines
+    (filter (l: match "[ \t]*//.*" l != null))
 
     # Filter empty lines
     (filter (l: l != ""))
