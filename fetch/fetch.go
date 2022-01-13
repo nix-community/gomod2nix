@@ -1,15 +1,12 @@
 package fetch
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/tweag/gomod2nix/formats/buildgopackage"
-	"github.com/tweag/gomod2nix/formats/gomod2nix"
-	"github.com/tweag/gomod2nix/types"
-	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
-	"golang.org/x/tools/go/vcs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -17,6 +14,15 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/google/go-github/github"
+	log "github.com/sirupsen/logrus"
+	"github.com/tweag/gomod2nix/formats/buildgopackage"
+	"github.com/tweag/gomod2nix/formats/gomod2nix"
+	"github.com/tweag/gomod2nix/types"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/tools/go/vcs"
 )
 
 type packageJob struct {
@@ -151,6 +157,74 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	return pkgs, nil
 }
 
+var GithubClient *github.Client
+var githubRepoRegexp *regexp.Regexp = regexp.MustCompile(`^https://github.com/([^/]+)/([^/]+)`)
+
+func resolveFullRev(repoRoot *vcs.RepoRoot, rev string) (string, error) {
+	// try using github api
+	if GithubClient != nil {
+		repoParts := githubRepoRegexp.FindStringSubmatch(repoRoot.Repo)
+		if len(repoParts) > 0 {
+			owner := repoParts[1]
+			repo := repoParts[2]
+
+			commit, _, _ := GithubClient.Repositories.GetCommit(context.Background(), owner, repo, rev)
+			if commit != nil && commit.SHA != nil {
+				return *commit.SHA, nil
+			}
+		}
+	}
+
+	// fallback to cloning repo
+	dirTop, err := ioutil.TempDir("", "vcstop-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(dirTop)
+
+	dir := filepath.Join(dirTop, "repo")
+
+	err = repoRoot.VCS.CreateAtRev(dir, repoRoot.Repo, rev)
+	if err != nil {
+		return "", err
+	}
+
+	stdout, err := exec.Command(
+		"git",
+		"-C",
+		dir,
+		"rev-parse",
+		rev,
+	).Output()
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(stdout) > 0 {
+		// remove ending new line
+		return string(stdout[:len(stdout)-1]), nil
+	} else {
+		return "", errors.New("git rev-parse output was empty")
+	}
+}
+
+func fetchGitExprForRev(repo, rev string) string {
+	return fmt.Sprintf(
+		"builtins.fetchGit { url = %q; allRefs = true; rev = %q; submodules = true; }",
+		repo,
+		rev,
+	)
+}
+
+func fetchGitExprForTag(repo, tag string) string {
+	return fmt.Sprintf(
+		"builtins.fetchGit { url = %q; ref = %q; submodules = true; }",
+		repo,
+		"refs/tags/"+tag,
+	)
+}
+
 func fetchPackage(caches []map[string]*types.Package, importPath string, goPackagePath string, sumVersion string) (*types.Package, error) {
 	repoRoot, err := vcs.RepoRootForImportPath(importPath, false)
 	if err != nil {
@@ -159,8 +233,19 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 
 	commitShaRev := regexp.MustCompile(`v\d+\.\d+\.\d+-[\d+\.a-zA-Z]*?[0-9]{14}-(.*?)$`)
 	rev := strings.TrimSuffix(sumVersion, "+incompatible")
+	var makeFetchExpr func(string, string) string
 	if commitShaRev.MatchString(rev) {
+		makeFetchExpr = fetchGitExprForRev
 		rev = commitShaRev.FindAllStringSubmatch(rev, -1)[0][1]
+		rev, err = resolveFullRev(repoRoot, rev)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"goPackagePath": goPackagePath,
+			}).Error("Fetching failed")
+			return nil, err
+		}
+	} else {
+		makeFetchExpr = fetchGitExprForTag
 	}
 
 	goPackagePathPrefix, pathMajor, _ := module.SplitPathVersion(goPackagePath)
@@ -194,48 +279,78 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 	}
 
 	type prefetchOutput struct {
-		URL    string `json:"url"`
-		Rev    string `json:"rev"`
-		Sha256 string `json:"sha256"`
-		Path   string `json:"path"`
-		// date   string
-		// fetchSubmodules bool
-		// deepClone       bool
-		// leaveDotGit     bool
+		LastModified     int    `json:"lastModified"`
+		LastModifiedDate string `json:"lastModifiedDate"`
+		NarHash          string `json:"narHash"`
+		Path             string `json:"path"`
+		Rev              string `json:"rev"`
+		RevCount         int    `json:"revCount"`
+		ShortRev         string `json:"shortRev"`
+		Submodules       bool   `json:"submodules"`
 	}
 
 	log.WithFields(log.Fields{
 		"goPackagePath": goPackagePath,
 		"rev":           rev,
 	}).Info("Cache miss, fetching")
-	stdout, err := exec.Command(
-		"nix-prefetch-git",
-		"--quiet",
-		"--fetch-submodules",
-		"--url", repoRoot.Repo,
-		"--rev", rev).Output()
-	if err != nil {
-		newRev := fmt.Sprintf("%s/%s", relPath, rev)
 
-		log.WithFields(log.Fields{
-			"goPackagePath": goPackagePath,
-			"rev":           newRev,
-		}).Info("Fetching failed, retrying with different rev format")
-		originalErr := err
-		stdout, err = exec.Command(
-			"nix-prefetch-git",
-			"--quiet",
-			"--fetch-submodules",
-			"--url", repoRoot.Repo,
-			"--rev", newRev).Output()
-		if err != nil {
+	stdout, err := exec.Command(
+		"nix",
+		"eval",
+		"--impure",
+		"--json",
+		"--expr",
+		fmt.Sprintf(
+			// we need to rename the outPath attr because nix's JSON output format
+			// logic is such that an attrset with an outPath attr will be printed
+			// as a solitary JSON string consisting of the outPath.
+			"let r = (%s); in builtins.removeAttrs r [\"outPath\"] // { path = r.outPath; }",
+			makeFetchExpr(repoRoot.Repo, rev),
+		),
+	).Output()
+
+	if err != nil {
+		if relPath != "" {
+			// handle cases like cloud.google.com/go/datastore where rev is v1.1.0
+			// the ref to fetch is refs/tags/datastore/v1.1.0,
+			// not refs/tags/v1.1.0.
+			//
+			// TODO: look through go source code and briefly document how this logic
+			// is supposed to work precisely.
+			newRev := fmt.Sprintf("%s/%s", relPath, rev)
+
+			log.WithFields(log.Fields{
+				"goPackagePath": goPackagePath,
+				"rev":           newRev,
+			}).Info("Fetching failed, retrying with different rev format")
+			originalErr := err
+
+			stdout, err = exec.Command(
+				"nix",
+				"eval",
+				"--impure",
+				"--json",
+				"--expr",
+				fmt.Sprintf(
+					"let r = (%s); in builtins.removeAttrs r [\"outPath\"] // { path = r.outPath; }",
+					makeFetchExpr(repoRoot.Repo, newRev),
+				),
+			).Output()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"goPackagePath": goPackagePath,
+				}).Error("Fetching failed")
+				return nil, originalErr
+			}
+
+			rev = newRev
+		} else {
+			// no relative path to try: propagate original error
 			log.WithFields(log.Fields{
 				"goPackagePath": goPackagePath,
 			}).Error("Fetching failed")
-			return nil, originalErr
+			return nil, err
 		}
-
-		rev = newRev
 	}
 
 	var output *prefetchOutput
@@ -248,6 +363,24 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 	if importPath != goPackagePath {
 		vendorPath = importPath
 	}
+
+	// need to convert SRI sha256 hash to sha256 hex
+	if !strings.HasPrefix(output.NarHash, "sha256-") {
+		log.WithFields(log.Fields{
+			"goPackagePath": goPackagePath,
+		}).Error("Fetching failed")
+		return nil, fmt.Errorf("Error: NarHash didn't begin with sha256- prefix: %s", output.NarHash)
+	}
+
+	b, err := base64.StdEncoding.DecodeString(output.NarHash[7:])
+	if err != nil {
+		log.WithFields(log.Fields{
+			"goPackagePath": goPackagePath,
+		}).Error("Fetching failed")
+		return nil, err
+	}
+
+	sha256 := hex.EncodeToString(b)
 
 	if relPath == "" && pathMajor != "" {
 		p := filepath.Join(output.Path, pathMajor)
@@ -262,7 +395,7 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		GoPackagePath: goPackagePath,
 		URL:           repoRoot.Repo,
 		Rev:           output.Rev,
-		Sha256:        output.Sha256,
+		Sha256:        sha256,
 		// This is used to skip fetching where the previous package path & versions are still the same
 		// It's also used to construct the vendor directory in the Nix build
 		SumVersion: sumVersion,
