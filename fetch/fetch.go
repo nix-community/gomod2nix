@@ -229,13 +229,25 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 			"--url", repoRoot.Repo,
 			"--rev", newRev).Output()
 		if err != nil {
-			log.WithFields(log.Fields{
-				"goPackagePath": goPackagePath,
-			}).Error("Fetching failed")
-			return nil, originalErr
-		}
-
-		rev = newRev
+      log.WithFields(log.Fields{
+        "goPackagePath": goPackagePath,
+        "branch":        rev,
+      }).Info("Fetching failed, retrying with rev as branch")
+      stdout, err = exec.Command(
+        "nix-prefetch-git",
+        "--quiet",
+        "--fetch-submodules",
+        "--url", repoRoot.Repo,
+        "--branch-name", rev).Output()
+      if err != nil {
+        log.WithFields(log.Fields{
+          "goPackagePath": goPackagePath,
+        }).Error("Fetching failed")
+        return nil, originalErr
+      }
+		} else {
+		  rev = newRev
+    }
 	}
 
 	var output *prefetchOutput
