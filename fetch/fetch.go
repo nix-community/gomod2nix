@@ -3,13 +3,6 @@ package fetch
 import (
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/tweag/gomod2nix/formats/buildgopackage"
-	"github.com/tweag/gomod2nix/formats/gomod2nix"
-	"github.com/tweag/gomod2nix/types"
-	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
-	"golang.org/x/tools/go/vcs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -17,6 +10,14 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/tweag/gomod2nix/formats/buildgopackage"
+	"github.com/tweag/gomod2nix/formats/gomod2nix"
+	"github.com/tweag/gomod2nix/types"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/tools/go/vcs"
 )
 
 type packageJob struct {
@@ -157,7 +158,7 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		return nil, err
 	}
 
-	commitShaRev := regexp.MustCompile(`v\d+\.\d+\.\d+-[\d+\.a-zA-Z]*?[0-9]{14}-(.*?)$`)
+	commitShaRev := regexp.MustCompile(`v\d+\.\d+\.\d+-[\d+\.a-zA-Z\-]*?[0-9]{14}-(.*?)$`)
 	rev := strings.TrimSuffix(sumVersion, "+incompatible")
 	if commitShaRev.MatchString(rev) {
 		rev = commitShaRev.FindAllStringSubmatch(rev, -1)[0][1]
