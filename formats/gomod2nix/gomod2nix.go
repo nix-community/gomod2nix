@@ -56,6 +56,7 @@ func LoadGomod2Nix(filePath string) map[string]*types.Package {
 		return ret
 	}
 
+	fmt.Println(filePath)
 	b, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Println(err)

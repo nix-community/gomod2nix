@@ -65,20 +65,40 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 		return nil, err
 	}
 
+  log.WithFields(log.Fields{
+    "parsed mod": mod,
+  }).Info("Logging replace directives")
+
 	caches := []map[string]*types.Package{}
+
+  log.WithFields(log.Fields{
+    "filePath": goMod2NixPath,
+  }).Info("Looking for gomod2nix file as cache")
 	goModCache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
-	if len(goModCache) > 0 {
-		caches = append(caches, goModCache)
-	}
-	buildGoCache := buildgopackage.LoadDepsNix(depsNixPath)
-	if len(buildGoCache) > 0 {
-		caches = append(caches, buildGoCache)
-	}
+  log.WithFields(log.Fields{
+    "cache": goModCache,
+  }).Info("Read cache file")
+  if len(goModCache) > 0 {
+    caches = append(caches, goModCache)
+  }
+  buildGoCache := buildgopackage.LoadDepsNix(depsNixPath)
+  if len(buildGoCache) > 0 {
+    caches = append(caches, buildGoCache)
+  }
 
 	// Map repos -> replacement repo
 	replace := make(map[string]string)
+
+  log.WithFields(log.Fields{
+    "mod replace": mod.Replace,
+  }).Info("Logging replace directives")
 	for _, repl := range mod.Replace {
-		replace[repl.New.Path] = repl.Old.Path
+
+    log.WithFields(log.Fields{
+      "oldPath": repl.Old.Path,
+      "newPath": repl.New.Path,
+    }).Info("Replacing replace directives")
+		replace[repl.Old.Path] = repl.New.Path
 	}
 
 	log.WithFields(log.Fields{
@@ -229,13 +249,25 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 			"--url", repoRoot.Repo,
 			"--rev", newRev).Output()
 		if err != nil {
-			log.WithFields(log.Fields{
-				"goPackagePath": goPackagePath,
-			}).Error("Fetching failed")
-			return nil, originalErr
-		}
-
-		rev = newRev
+      log.WithFields(log.Fields{
+        "goPackagePath": goPackagePath,
+        "branch":        rev,
+      }).Info("Fetching failed, retrying with rev as branch")
+      stdout, err = exec.Command(
+        "nix-prefetch-git",
+        "--quiet",
+        "--fetch-submodules",
+        "--url", repoRoot.Repo,
+        "--branch-name", rev).Output()
+      if err != nil {
+        log.WithFields(log.Fields{
+          "goPackagePath": goPackagePath,
+        }).Error("Fetching failed")
+        return nil, originalErr
+      }
+		} else {
+		  rev = newRev
+    }
 	}
 
 	var output *prefetchOutput
