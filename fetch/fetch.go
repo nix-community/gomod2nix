@@ -74,23 +74,16 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
   log.WithFields(log.Fields{
     "filePath": goMod2NixPath,
   }).Info("Looking for gomod2nix file as cache")
-	goModCache, err := gomod2nix.LoadGomod2Nix(goMod2NixPath)
+	goModCache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
   log.WithFields(log.Fields{
-    "err": err,
     "cache": goModCache,
   }).Info("Read cache file")
-  if (err != nil){
-    if len(goModCache) > 0 {
-      caches = append(caches, goModCache)
-    }
-    buildGoCache := buildgopackage.LoadDepsNix(depsNixPath)
-    if len(buildGoCache) > 0 {
-      caches = append(caches, buildGoCache)
-    }
-  } else {
-    log.WithFields(log.Fields{
-      "goMod2NixPath": goMod2NixPath,
-    }).Info("Could not find gomod2nix path, this constitutes a complete cache miss")
+  if len(goModCache) > 0 {
+    caches = append(caches, goModCache)
+  }
+  buildGoCache := buildgopackage.LoadDepsNix(depsNixPath)
+  if len(buildGoCache) > 0 {
+    caches = append(caches, buildGoCache)
   }
 
 	// Map repos -> replacement repo
