@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/tweag/gomod2nix/formats/buildgopackage"
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
-	"github.com/tweag/gomod3nix/types"
+	"github.com/tweag/gomod2nix/types"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/vcs"
@@ -64,6 +64,10 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	if err != nil {
 		return nil, err
 	}
+
+  log.WithFields(log.Fields{
+    "parsed mod": mod,
+  }).Info("Logging replace directives")
 
 	caches := []map[string]*types.Package{}
 	goModCache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
