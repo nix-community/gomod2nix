@@ -75,8 +75,10 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
     "filePath": goMod2NixPath,
   }).Info("Looking for gomod2nix file as cache")
 	goModCache, err := gomod2nix.LoadGomod2Nix(goMod2NixPath)
-  fmt.PrintLn(err)
-  fmt.PrintLn(goModCache)
+  log.WithFields(log.Fields{
+    "err": err,
+    "cache": goModCache,
+  }).Info("Read cache file")
   if (err != nil){
     if len(goModCache) > 0 {
       caches = append(caches, goModCache)
