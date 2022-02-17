@@ -71,6 +71,8 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 
 	caches := []map[string]*types.Package{}
 	goModCache, err := gomod2nix.LoadGomod2Nix(goMod2NixPath)
+  fmt.PrintLn(err)
+  fmt.PrintLn(goModCache)
 
   if (err != nil){
     if len(goModCache) > 0 {
