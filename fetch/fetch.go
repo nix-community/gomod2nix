@@ -78,7 +78,7 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	// Map repos -> replacement repo
 	replace := make(map[string]string)
 	for _, repl := range mod.Replace {
-		replace[repl.New.Path] = repl.Old.Path
+		replace[repl.Old.Path] = repl.New.Path
 	}
 
 	log.WithFields(log.Fields{
