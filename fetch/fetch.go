@@ -70,10 +70,13 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
   }).Info("Logging replace directives")
 
 	caches := []map[string]*types.Package{}
+
+  log.WithFields(log.Fields{
+    "filePath": goMod2NixPath,
+  }).Info("Looking for gomod2nix file as cache")
 	goModCache, err := gomod2nix.LoadGomod2Nix(goMod2NixPath)
   fmt.PrintLn(err)
   fmt.PrintLn(goModCache)
-
   if (err != nil){
     if len(goModCache) > 0 {
       caches = append(caches, goModCache)
