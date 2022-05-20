@@ -19,3 +19,5 @@ require (
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 )
+
+replace github.com/btcsuite/btcd/chaincfg/chainhash => github.com/yihuang/btcd/chaincfg/chainhash v1.0.2-0.20220517215929-cee92e09adcf
