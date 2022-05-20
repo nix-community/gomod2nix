@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -89,7 +90,7 @@ func main() {
 						}
 						for _, f := range files {
 							if err := os.Symlink(filepath.Join(innerSrc, f.Name()), filepath.Join(dst, f.Name())); err != nil {
-								panic(err)
+								fmt.Println("ignore symlink error", filepath.Join(innerSrc, f.Name()), filepath.Join(dst, f.Name()))
 							}
 						}
 					}
