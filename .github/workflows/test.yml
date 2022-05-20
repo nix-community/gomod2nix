@@ -1,0 +1,20 @@
+name: Test
+
+on:
+  pull_request:
+    paths-ignore:
+    - '**.md'
+  push:
+    paths-ignore:
+    - '**.md'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
+    steps:
+    - uses: cachix/install-nix-action@v12
+    - uses: actions/checkout@v1
+    - run: |
+      make -C tests
