@@ -67,7 +67,9 @@ func main() {
 		for _, path := range paths {
 
 			vendorDir := filepath.Join("vendor", filepath.Dir(path))
-			os.MkdirAll(vendorDir, 0755)
+			if err := os.MkdirAll(vendorDir, 0755); err != nil {
+				panic(err)
+			}
 
 			if _, err := os.Stat(filepath.Join("vendor", path)); err == nil {
 				files, err := ioutil.ReadDir(src)
@@ -76,7 +78,21 @@ func main() {
 				}
 
 				for _, f := range files {
-					os.Symlink(filepath.Join(src, f.Name()), filepath.Join("vendor", path, f.Name()))
+					innerSrc := filepath.Join(src, f.Name())
+					dst := filepath.Join("vendor", path, f.Name())
+					if err := os.Symlink(innerSrc, dst); err != nil {
+						// assume it's an existing directory, try to link the directory content instead.
+						// TODO should we do this recursively
+						files, err := ioutil.ReadDir(innerSrc)
+						if err != nil {
+							panic(err)
+						}
+						for _, f := range files {
+							if err := os.Symlink(filepath.Join(innerSrc, f.Name()), filepath.Join(dst, f.Name())); err != nil {
+								panic(err)
+							}
+						}
+					}
 				}
 
 				continue

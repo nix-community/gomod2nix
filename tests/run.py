@@ -16,7 +16,7 @@ if __name__ == '__main__':
         subprocess.run([cmd, "--dir", directory, "--outdir", directory], check=True)
 
         build_expr = ("""
-        with (import <nixpkgs> { overlays = [ (import %s/overlay.nix) ]; }); callPackage %s {}"
+        with (import <nixpkgs> { overlays = [ (import %s/overlay.nix) ]; }); callPackage %s {}
         """.replace("\n", " ") % (root_dir, directory))
         subprocess.run(["nix-build", "--expr", build_expr], check=True)
 
