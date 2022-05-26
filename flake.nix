@@ -7,7 +7,7 @@
 
   outputs = { self, nixpkgs, utils }:
     {
-      overlay = import ./overlay.nix;
+      overlays.default = import ./overlay.nix;
     } //
     (utils.lib.eachDefaultSystem
       (system:
@@ -15,13 +15,13 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              self.overlay
+              self.overlays.default
             ];
           };
         in
         {
-          defaultPackage = pkgs.callPackage ./default.nix { };
-          devShell = import ./shell.nix { inherit pkgs; };
+          packages.default = pkgs.callPackage ./default.nix { };
+          devShells.default = import ./shell.nix { inherit pkgs; };
         })
     );
 }
