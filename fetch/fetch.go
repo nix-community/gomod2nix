@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/tweag/gomod2nix/formats/buildgopackage"
 	"github.com/tweag/gomod2nix/formats/gomod2nix"
 	"github.com/tweag/gomod2nix/types"
 	"golang.org/x/mod/modfile"
@@ -48,7 +47,7 @@ func worker(id int, caches []map[string]*types.Package, jobs <-chan *packageJob,
 	}
 }
 
-func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, depsNixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
+func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
 
 	log.WithFields(log.Fields{
 		"modPath": goModPath,
@@ -70,10 +69,6 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, dep
 	goModCache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
 	if len(goModCache) > 0 {
 		caches = append(caches, goModCache)
-	}
-	buildGoCache := buildgopackage.LoadDepsNix(depsNixPath)
-	if len(buildGoCache) > 0 {
-		caches = append(caches, buildGoCache)
 	}
 
 	// Map repos -> replacement repo
