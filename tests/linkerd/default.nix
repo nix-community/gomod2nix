@@ -17,11 +17,4 @@ buildGoApplication {
   doCheck = false;
 
   subPackages = [ "cli/cmd" ];
-
-  meta = with stdenv.lib; {
-    description = "A service mesh for Kubernetes and beyond";
-    homepage = "https://linkerd.io/";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ Gonzih ];
-  };
 }
