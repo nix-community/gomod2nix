@@ -1,4 +1,4 @@
-self: super: {
-  buildGoApplication = self.callPackage ./builder { };
-  gomod2nix = self.callPackage ./default.nix { };
+final: prev: {
+  buildGoApplication = final.callPackage ./builder { };
+  gomod2nix = final.callPackage ./default.nix { };
 }

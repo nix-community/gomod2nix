@@ -7,10 +7,7 @@
 
   outputs = { self, nixpkgs, utils }:
     {
-      overlay = final: prev: {
-        buildGoApplication = final.callPackage ./builder { };
-        gomod2nix = final.callPackage ./default.nix { };
-      };
+      overlays.default = import ./overlay.nix;
     } //
     (utils.lib.eachDefaultSystem
       (system:
@@ -18,17 +15,13 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              self.overlay
+              self.overlays.default
             ];
           };
         in
         {
-          defaultPackage = pkgs.callPackage ./default.nix { };
-          devShell = with pkgs; mkShell {
-            buildInputs = [
-              gomod2nix
-            ];
-          };
+          packages.default = pkgs.callPackage ./default.nix { };
+          devShells.default = import ./shell.nix { inherit pkgs; };
         })
     );
 }
