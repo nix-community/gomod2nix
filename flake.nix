@@ -21,11 +21,7 @@
         in
         {
           defaultPackage = pkgs.callPackage ./default.nix { };
-          devShell = with pkgs; mkShell {
-            buildInputs = [
-              gomod2nix
-            ];
-          };
+          devShell = import ./shell.nix { inherit pkgs; };
         })
     );
 }
