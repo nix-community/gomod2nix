@@ -71,8 +71,6 @@ let
             go run ${./symlink.go}
             ${lib.concatStringsSep "\n" localReplaceCommands}
 
-            find vendor
-
             mv vendor $out
           ''
         );
@@ -118,6 +116,10 @@ let
             [ -n "$excludedPackages" ] && echo "$d" | grep -q "$excludedPackages" && return 0
             local OUT
             if ! OUT="$(go $cmd $buildFlags "''${buildFlagsArray[@]}" -v -p $NIX_BUILD_CORES $d 2>&1)"; then
+              if echo "$OUT" | grep -qE 'imports .*?: no Go files in'; then
+                echo "$OUT" >&2
+                return 1
+              fi
               if ! echo "$OUT" | grep -qE '(no( buildable| non-test)?|build constraints exclude all) Go (source )?files'; then
                 echo "$OUT" >&2
                 return 1

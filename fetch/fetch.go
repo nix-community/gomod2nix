@@ -164,11 +164,11 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		rev = commitShaRev.FindAllStringSubmatch(rev, -1)[0][1]
 	}
 
-	goPackagePathPrefix, pathMajor, _ := module.SplitPathVersion(goPackagePath)
+	importPathPrefix, pathMajor, _ := module.SplitPathVersion(importPath)
 
 	// Relative path within the repo
-	relPath := strings.TrimPrefix(goPackagePathPrefix, repoRoot.Root+"/")
-	if relPath == goPackagePathPrefix {
+	relPath := strings.TrimPrefix(importPathPrefix, repoRoot.Root+"/")
+	if relPath == importPathPrefix {
 		relPath = ""
 	}
 
