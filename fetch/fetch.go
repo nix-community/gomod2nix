@@ -9,8 +9,10 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/tweag/gomod2nix/lib"
 	"github.com/tweag/gomod2nix/types"
 	"golang.org/x/mod/modfile"
 )
@@ -89,44 +91,60 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 		}).Info("Done downloading dependencies")
 	}
 
+	executor := lib.NewParallellExecutor(numWorkers)
+	var mux sync.Mutex
+
 	packages := []*types.Package{}
 	for _, dl := range modDownloads {
+		dl := dl
 
-		goPackagePath, hasReplace := replace[dl.Path]
-		if !hasReplace {
-			goPackagePath = dl.Path
-		}
+		executor.Add(func() error {
 
-		var storePath string
-		{
+			goPackagePath, hasReplace := replace[dl.Path]
+			if !hasReplace {
+				goPackagePath = dl.Path
+			}
+
+			var storePath string
+			{
+				stdout, err := exec.Command(
+					"nix", "eval", "--impure", "--expr",
+					fmt.Sprintf("builtins.path { name = \"%s_%s\"; path = \"%s\"; }", path.Base(goPackagePath), dl.Version, dl.Dir),
+				).Output()
+				if err != nil {
+					return err
+				}
+				storePath = string(stdout)[1 : len(stdout)-2]
+			}
+
 			stdout, err := exec.Command(
-				"nix", "eval", "--impure", "--expr",
-				fmt.Sprintf("builtins.path { name = \"%s_%s\"; path = \"%s\"; }", path.Base(goPackagePath), dl.Version, dl.Dir),
+				"nix-store", "--query", "--hash", storePath,
 			).Output()
 			if err != nil {
-				return nil, err
+				return err
 			}
-			storePath = string(stdout)[1 : len(stdout)-2]
-		}
+			hash := strings.TrimSpace(string(stdout))
 
-		stdout, err := exec.Command(
-			"nix-store", "--query", "--hash", storePath,
-		).Output()
-		if err != nil {
-			return nil, err
-		}
-		hash := strings.TrimSpace(string(stdout))
+			pkg := &types.Package{
+				GoPackagePath: goPackagePath,
+				Version:       dl.Version,
+				Hash:          hash,
+			}
+			if hasReplace {
+				pkg.ReplacedPath = dl.Path
+			}
 
-		pkg := &types.Package{
-			GoPackagePath: goPackagePath,
-			Version:       dl.Version,
-			Hash:          hash,
-		}
-		if hasReplace {
-			pkg.ReplacedPath = dl.Path
-		}
+			mux.Lock()
+			packages = append(packages, pkg)
+			mux.Unlock()
 
-		packages = append(packages, pkg)
+			return nil
+		})
+	}
+
+	err = executor.Wait()
+	if err != nil {
+		return nil, err
 	}
 
 	return packages, nil
