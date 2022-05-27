@@ -30,7 +30,7 @@ type packageResult struct {
 	err error
 }
 
-func worker(id int, caches []map[string]*types.Package, jobs <-chan *packageJob, results chan<- *packageResult) {
+func worker(id int, cache map[string]*types.Package, jobs <-chan *packageJob, results chan<- *packageResult) {
 	log.WithField("workerId", id).Info("Starting worker process")
 
 	for j := range jobs {
@@ -39,7 +39,7 @@ func worker(id int, caches []map[string]*types.Package, jobs <-chan *packageJob,
 			"goPackagePath": j.goPackagePath,
 		}).Info("Worker received job")
 
-		pkg, err := fetchPackage(caches, j.importPath, j.goPackagePath, j.sumVersion)
+		pkg, err := fetchPackage(cache, j.importPath, j.goPackagePath, j.sumVersion)
 		results <- &packageResult{
 			err: err,
 			pkg: pkg,
@@ -65,11 +65,7 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 		return nil, err
 	}
 
-	caches := []map[string]*types.Package{}
-	goModCache := gomod2nix.LoadGomod2Nix(goMod2NixPath)
-	if len(goModCache) > 0 {
-		caches = append(caches, goModCache)
-	}
+	caches := gomod2nix.LoadGomod2Nix(goMod2NixPath)
 
 	// Map repos -> replacement repo
 	replace := make(map[string]string)
@@ -147,7 +143,7 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 	return pkgs, nil
 }
 
-func fetchPackage(caches []map[string]*types.Package, importPath string, goPackagePath string, sumVersion string) (*types.Package, error) {
+func fetchPackage(cache map[string]*types.Package, importPath string, goPackagePath string, sumVersion string) (*types.Package, error) {
 	repoRoot, err := vcs.RepoRootForImportPath(importPath, false)
 	if err != nil {
 		return nil, err
@@ -167,20 +163,17 @@ func fetchPackage(caches []map[string]*types.Package, importPath string, goPacka
 		relPath = ""
 	}
 
-	if len(caches) > 0 {
-		log.WithFields(log.Fields{
-			"goPackagePath": goPackagePath,
-		}).Info("Checking previous invocation cache")
-
-		for _, cache := range caches {
-			cached, ok := cache[goPackagePath]
-			if ok {
-				if cached.SumVersion == sumVersion {
-					log.WithFields(log.Fields{
-						"goPackagePath": goPackagePath,
-					}).Info("Returning cached entry")
-					return cached, nil
-				}
+	log.WithFields(log.Fields{
+		"goPackagePath": goPackagePath,
+	}).Info("Checking previous invocation cache")
+	{
+		cached, ok := cache[goPackagePath]
+		if ok {
+			if cached.SumVersion == sumVersion {
+				log.WithFields(log.Fields{
+					"goPackagePath": goPackagePath,
+				}).Info("Returning cached entry")
+				return cached, nil
 			}
 		}
 	}
