@@ -13,20 +13,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/tweag/gomod2nix/lib"
-	"github.com/tweag/gomod2nix/types"
+	schema "github.com/tweag/gomod2nix/schema"
 	"golang.org/x/mod/modfile"
 )
-
-type packageJob struct {
-	importPath    string
-	goPackagePath string
-	sumVersion    string
-}
-
-type packageResult struct {
-	pkg *types.Package
-	err error
-}
 
 type goModDownload struct {
 	Path     string
@@ -39,7 +28,7 @@ type goModDownload struct {
 	GoModSum string
 }
 
-func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, numWorkers int, keepGoing bool) ([]*types.Package, error) {
+func GeneratePkgs(goModPath string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
 
 	log.WithFields(log.Fields{
 		"modPath": goModPath,
@@ -65,9 +54,7 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 
 	var modDownloads []*goModDownload
 	{
-		log.WithFields(log.Fields{
-			"sumPath": goSumPath,
-		}).Info("Downloading dependencies")
+		log.Info("Downloading dependencies")
 
 		stdout, err := exec.Command(
 			"go", "mod", "download", "--json",
@@ -86,15 +73,13 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 			modDownloads = append(modDownloads, dl)
 		}
 
-		log.WithFields(log.Fields{
-			"sumPath": goSumPath,
-		}).Info("Done downloading dependencies")
+		log.Info("Done downloading dependencies")
 	}
 
 	executor := lib.NewParallellExecutor(numWorkers)
 	var mux sync.Mutex
 
-	packages := []*types.Package{}
+	packages := []*schema.Package{}
 	for _, dl := range modDownloads {
 		dl := dl
 
@@ -125,7 +110,7 @@ func FetchPackages(goModPath string, goSumPath string, goMod2NixPath string, num
 			}
 			hash := strings.TrimSpace(string(stdout))
 
-			pkg := &types.Package{
+			pkg := &schema.Package{
 				GoPackagePath: goPackagePath,
 				Version:       dl.Version,
 				Hash:          hash,
