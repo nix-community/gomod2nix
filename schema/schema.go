@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"github.com/BurntSushi/toml"
+	"os"
 )
 
 const SchemaVersion = 1
@@ -37,4 +38,34 @@ func Marshal(pkgs []*Package) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func ReadCache(filePath string) map[string]*Package {
+	ret := make(map[string]*Package)
+
+	if filePath == "" {
+		return ret
+	}
+
+	b, err := os.ReadFile(filePath)
+	if err != nil {
+		return ret
+	}
+
+	var output Output
+	_, err = toml.Decode(string(b), &output)
+	if err != nil {
+		return ret
+	}
+
+	if output.SchemaVersion != SchemaVersion {
+		return ret
+	}
+
+	for k, v := range output.Mod {
+		v.GoPackagePath = k
+		ret[k] = v
+	}
+
+	return ret
 }

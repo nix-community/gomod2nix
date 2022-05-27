@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 
@@ -79,17 +80,30 @@ func GeneratePkgs(goModPath string, goMod2NixPath string, numWorkers int) ([]*sc
 	executor := lib.NewParallellExecutor(numWorkers)
 	var mux sync.Mutex
 
+	cache := schema.ReadCache(goMod2NixPath)
+
 	packages := []*schema.Package{}
+	addPkg := func(pkg *schema.Package) {
+		mux.Lock()
+		packages = append(packages, pkg)
+		mux.Unlock()
+	}
+
 	for _, dl := range modDownloads {
 		dl := dl
 
+		goPackagePath, hasReplace := replace[dl.Path]
+		if !hasReplace {
+			goPackagePath = dl.Path
+		}
+
+		cached, ok := cache[goPackagePath]
+		if ok && cached.Version == dl.Version {
+			addPkg(cached)
+			continue
+		}
+
 		executor.Add(func() error {
-
-			goPackagePath, hasReplace := replace[dl.Path]
-			if !hasReplace {
-				goPackagePath = dl.Path
-			}
-
 			var storePath string
 			{
 				stdout, err := exec.Command(
@@ -119,9 +133,7 @@ func GeneratePkgs(goModPath string, goMod2NixPath string, numWorkers int) ([]*sc
 				pkg.ReplacedPath = dl.Path
 			}
 
-			mux.Lock()
-			packages = append(packages, pkg)
-			mux.Unlock()
+			addPkg(pkg)
 
 			return nil
 		})
@@ -131,6 +143,10 @@ func GeneratePkgs(goModPath string, goMod2NixPath string, numWorkers int) ([]*sc
 	if err != nil {
 		return nil, err
 	}
+
+	sort.Slice(packages, func(i, j int) bool {
+		return packages[i].GoPackagePath < packages[j].GoPackagePath
+	})
 
 	return packages, nil
 
