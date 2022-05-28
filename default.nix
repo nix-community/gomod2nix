@@ -1,5 +1,8 @@
-{ buildGoApplication, go, nix, lib, makeWrapper, nix-prefetch-git }:
+{ buildGoApplication, go_1_18, nix, lib, makeWrapper, nix-prefetch-git }:
 
+let
+  go = go_1_18;
+in
 buildGoApplication {
   inherit go;
   pname = "gomod2nix";

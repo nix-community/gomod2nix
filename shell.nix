@@ -21,7 +21,7 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.nix-prefetch-git
     pkgs.nixpkgs-fmt
-    pkgs.go
+    pkgs.gomod2nix.go
     pkgs.gomod2nix
   ];
 }
