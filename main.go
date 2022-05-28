@@ -13,7 +13,6 @@ import (
 func main() {
 
 	var directory = flag.String("dir", "./", "Go project directory")
-	var maxJobs = flag.Int("jobs", 10, "Number of max parallel jobs")
 	var outDirFlag = flag.String("outdir", "", "output directory (if different from project directory)")
 	flag.Parse()
 
@@ -26,7 +25,7 @@ func main() {
 
 	goMod2NixPath := filepath.Join(outDir, "gomod2nix.toml")
 	outFile := goMod2NixPath
-	pkgs, err := generate.GeneratePkgs(goModPath, goMod2NixPath, *maxJobs)
+	pkgs, err := generate.GeneratePkgs(goModPath, goMod2NixPath)
 	if err != nil {
 		panic(err)
 	}

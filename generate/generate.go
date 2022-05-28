@@ -29,7 +29,7 @@ type goModDownload struct {
 	GoModSum string
 }
 
-func GeneratePkgs(goModPath string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
+func GeneratePkgs(goModPath string, goMod2NixPath string) ([]*schema.Package, error) {
 
 	log.WithFields(log.Fields{
 		"modPath": goModPath,
