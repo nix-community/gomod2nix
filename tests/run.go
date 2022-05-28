@@ -62,6 +62,15 @@ func runProcess(prefix string, command string, args ...string) error {
 	return cmd.Wait()
 }
 
+func contains(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}
+
 func runTest(testDir string) error {
 	rootDir := filepath.Join(cwd, "..")
 
@@ -82,6 +91,15 @@ func runTest(testDir string) error {
 
 func main() {
 
+	// Takes too long for Github Actions
+	var blacklist []string
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		blacklist = []string{
+			"helm",
+			"minikube",
+		}
+	}
+
 	files, err := os.ReadDir(".")
 	if err != nil {
 		panic(err)
@@ -89,7 +107,7 @@ func main() {
 
 	testDirs := []string{}
 	for _, f := range files {
-		if f.IsDir() {
+		if f.IsDir() && !contains(blacklist, f.Name()) {
 			testDirs = append(testDirs, f.Name())
 		}
 	}
