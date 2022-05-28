@@ -6,7 +6,7 @@
 , pkg-config
 , which
 , libvirt
-, vmnet
+, darwin
 }:
 
 buildGoApplication rec {
@@ -26,7 +26,7 @@ buildGoApplication rec {
 
   nativeBuildInputs = [ go-bindata installShellFiles pkg-config which ];
 
-  buildInputs = if stdenv.isDarwin then [ vmnet ] else if stdenv.isLinux then [ libvirt ] else null;
+  buildInputs = if stdenv.isDarwin then [ darwin.apple_sdk.frameworks.vmnet ] else if stdenv.isLinux then [ libvirt ] else null;
 
   buildPhase = ''
     make COMMIT=${src.rev}
