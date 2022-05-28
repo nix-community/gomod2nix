@@ -17,6 +17,7 @@
 }:
 
 pkgs.mkShell {
+  NIX_PATH = "nixpkgs=${builtins.toString pkgs.path}";
   buildInputs = [
     pkgs.nix-prefetch-git
     pkgs.nixpkgs-fmt
