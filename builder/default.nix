@@ -5,9 +5,9 @@
 , lib
 , fetchgit
 , removeReferencesTo
-, go
 , jq
 , cacert
+, pkgs
 }:
 let
 
@@ -19,6 +19,7 @@ let
     { hash
     , goPackagePath
     , version
+    , go ? pkgs.go
     }:
     stdenvNoCC.mkDerivation {
       name = "${baseNameOf goPackagePath}_${version}";
@@ -34,6 +35,7 @@ let
 
   buildGoApplication =
     { modules
+    , go ? pkgs.go
     , src
     , pwd ? null
     , CGO_ENABLED ? "0"
@@ -72,6 +74,7 @@ let
               (goPackagePath: meta: fetchGoModule {
                 goPackagePath = meta.replaced or goPackagePath;
                 inherit (meta) version hash;
+                inherit go;
               })
               modulesStruct.mod
           );
