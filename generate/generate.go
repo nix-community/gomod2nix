@@ -2,16 +2,16 @@ package fetch
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os/exec"
-	"path"
 	"sort"
-	"strings"
 	"sync"
 
+	"github.com/nix-community/go-nix/pkg/nar"
 	log "github.com/sirupsen/logrus"
 	"github.com/tweag/gomod2nix/lib"
 	schema "github.com/tweag/gomod2nix/schema"
@@ -77,7 +77,7 @@ func GeneratePkgs(goModPath string, goMod2NixPath string, numWorkers int) ([]*sc
 		log.Info("Done downloading dependencies")
 	}
 
-	executor := lib.NewParallellExecutor(numWorkers)
+	executor := lib.NewParallellExecutor()
 	var mux sync.Mutex
 
 	cache := schema.ReadCache(goMod2NixPath)
@@ -104,30 +104,17 @@ func GeneratePkgs(goModPath string, goMod2NixPath string, numWorkers int) ([]*sc
 		}
 
 		executor.Add(func() error {
-			var storePath string
-			{
-				stdout, err := exec.Command(
-					"nix", "eval", "--impure", "--expr",
-					fmt.Sprintf("builtins.path { name = \"%s_%s\"; path = \"%s\"; }", path.Base(goPackagePath), dl.Version, dl.Dir),
-				).Output()
-				if err != nil {
-					return err
-				}
-				storePath = string(stdout)[1 : len(stdout)-2]
-			}
-
-			stdout, err := exec.Command(
-				"nix-store", "--query", "--hash", storePath,
-			).Output()
+			h := sha256.New()
+			err := nar.DumpPath(h, dl.Dir)
 			if err != nil {
 				return err
 			}
-			hash := strings.TrimSpace(string(stdout))
+			digest := h.Sum(nil)
 
 			pkg := &schema.Package{
 				GoPackagePath: goPackagePath,
 				Version:       dl.Version,
-				Hash:          hash,
+				Hash:          "sha256-" + base64.StdEncoding.EncodeToString(digest),
 			}
 			if hasReplace {
 				pkg.ReplacedPath = dl.Path
