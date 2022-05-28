@@ -21,11 +21,9 @@ func main() {
 		outDir = *directory
 	}
 
-	goModPath := filepath.Join(*directory, "go.mod")
-
 	goMod2NixPath := filepath.Join(outDir, "gomod2nix.toml")
 	outFile := goMod2NixPath
-	pkgs, err := generate.GeneratePkgs(goModPath, goMod2NixPath)
+	pkgs, err := generate.GeneratePkgs(*directory, goMod2NixPath)
 	if err != nil {
 		panic(err)
 	}

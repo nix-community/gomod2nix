@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"sync"
 
@@ -29,7 +30,8 @@ type goModDownload struct {
 	GoModSum string
 }
 
-func GeneratePkgs(goModPath string, goMod2NixPath string) ([]*schema.Package, error) {
+func GeneratePkgs(directory string, goMod2NixPath string) ([]*schema.Package, error) {
+	goModPath := filepath.Join(directory, "go.mod")
 
 	log.WithFields(log.Fields{
 		"modPath": goModPath,
@@ -57,9 +59,11 @@ func GeneratePkgs(goModPath string, goMod2NixPath string) ([]*schema.Package, er
 	{
 		log.Info("Downloading dependencies")
 
-		stdout, err := exec.Command(
+		cmd := exec.Command(
 			"go", "mod", "download", "--json",
-		).Output()
+		)
+		cmd.Dir = directory
+		stdout, err := cmd.Output()
 		if err != nil {
 			return nil, err
 		}
