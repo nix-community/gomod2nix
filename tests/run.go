@@ -3,21 +3,16 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"runtime"
 	"sync"
 )
-
-var cwd = func() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	return cwd
-}()
 
 type testError struct {
 	testDir string
@@ -71,17 +66,17 @@ func contains(haystack []string, needle string) bool {
 	return false
 }
 
-func runTest(testDir string) error {
-	rootDir := filepath.Join(cwd, "..")
-
-	cmdPath := filepath.Join(rootDir, "gomod2nix")
-	err := runProcess(testDir, cmdPath, "--dir", testDir, "--outdir", testDir)
+func runTest(rootDir string, testDir string) error {
+	prefix := testDir
+	cmdPath := filepath.Join(rootDir, "..", "gomod2nix")
+	testDir = filepath.Join(rootDir, testDir)
+	err := runProcess(prefix, cmdPath, "--dir", testDir, "--outdir", testDir)
 	if err != nil {
 		return err
 	}
 
-	buildExpr := fmt.Sprintf("with (import <nixpkgs> { overlays = [ (import %s/overlay.nix) ]; }); callPackage ./%s {}", rootDir, testDir)
-	err = runProcess(testDir, "nix-build", "--no-out-link", "--expr", buildExpr)
+	buildExpr := fmt.Sprintf("with (import <nixpkgs> { overlays = [ (import %s/../overlay.nix) ]; }); callPackage %s {}", rootDir, testDir)
+	err = runProcess(prefix, "nix-build", "--no-out-link", "--expr", buildExpr)
 	if err != nil {
 		return err
 	}
@@ -89,8 +84,7 @@ func runTest(testDir string) error {
 	return nil
 }
 
-func main() {
-
+func getTestDirs(rootDir string) ([]string, error) {
 	// Takes too long for Github Actions
 	var blacklist []string
 	if os.Getenv("GITHUB_ACTIONS") == "true" {
@@ -100,9 +94,9 @@ func main() {
 		}
 	}
 
-	files, err := os.ReadDir(".")
+	files, err := os.ReadDir(rootDir)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	testDirs := []string{}
@@ -112,6 +106,10 @@ func main() {
 		}
 	}
 
+	return testDirs, nil
+}
+
+func runTests(rootDir string, testDirs []string) error {
 	var wg sync.WaitGroup
 	cmdErrChan := make(chan error)
 	for _, testDir := range testDirs {
@@ -120,9 +118,9 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := runTest(testDir)
+			err := runTest(rootDir, testDir)
 			if err != nil {
-				cmdErrChan <- err
+				cmdErrChan <- fmt.Errorf("Test for '%s' failed: %w", testDir, err)
 			}
 		}()
 	}
@@ -133,8 +131,67 @@ func main() {
 	}()
 
 	for cmdErr := range cmdErrChan {
-		fmt.Println(fmt.Sprintf("Test for '%s' failed:", cmdErr))
-		os.Exit(1)
+		return cmdErr
+	}
+
+	return nil
+}
+
+func main() {
+
+	var rootDir string
+	{
+		_, file, _, ok := runtime.Caller(0)
+		if !ok {
+			panic("Couldn't get test directory")
+		}
+		rootDir = path.Dir(file)
+	}
+
+	flag.Parse()
+
+	nArgs := flag.NArg()
+
+	action := "run"
+	if nArgs >= 1 {
+		action = flag.Arg(0)
+	}
+
+	switch action {
+	case "list":
+		testDirs, err := getTestDirs(rootDir)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, testDir := range testDirs {
+			fmt.Println(testDir)
+		}
+
+		return
+
+	case "run":
+		var testDirs []string
+		var err error
+		if nArgs > 1 {
+			args := flag.Args()
+			testDirs = args[1:nArgs]
+		} else {
+			testDirs, err = getTestDirs(rootDir)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		err = runTests(rootDir, testDirs)
+		if err != nil {
+			panic(err)
+		}
+
+		return
+
+	default:
+		panic(fmt.Errorf("Unhandled action: %s", flag.Arg(0)))
 	}
 
 }
