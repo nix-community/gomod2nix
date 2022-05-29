@@ -10,28 +10,88 @@
 , pkgs
 }:
 let
+  inherit (builtins) split elemAt filter typeOf;
+
+  nixVersion = builtins.substring 0 3 builtins.nixVersion;
+  isNix24Plus = lib.versionAtLeast nixVersion "2.4";
 
   parseGoMod = import ./parser.nix;
+  parseVersion = import ./parse-version.nix;
 
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
 
-  fetchGoModule =
-    { hash
-    , goPackagePath
+  fetchGoModule = (
+    lib.makeOverridable (
+      { hash
+      , goPackagePath
+      , version
+      , private ? false
+      , go ? pkgs.go
+      }:
+      if private then
+        fetchGoModulePrivate
+          {
+            inherit goPackagePath version;
+          } else
+        stdenvNoCC.mkDerivation {
+          name = "${baseNameOf goPackagePath}_${version}";
+          builder = ./fetch.sh;
+          inherit goPackagePath version;
+          nativeBuildInputs = [ go jq ];
+          outputHashMode = "recursive";
+          outputHashAlgo = null;
+          outputHash = hash;
+          SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+          impureEnvVars = lib.fetchers.proxyImpureEnvVars;
+        }
+    )
+  );
+
+  # A "best effort" attempt at generalising fetching private repositories
+  # It's very likely that more advanced use cases needs to be done manually
+  # and that we'll need to have some UX for that.
+  #
+  # This version works for popular forges such as Github and Gitlab.
+  fetchGoModulePrivate =
+    { goPackagePath
     , version
-    , go ? pkgs.go
     }:
-    stdenvNoCC.mkDerivation {
-      name = "${baseNameOf goPackagePath}_${version}";
-      builder = ./fetch.sh;
-      inherit goPackagePath version;
-      nativeBuildInputs = [ go jq ];
-      outputHashMode = "recursive";
-      outputHashAlgo = null;
-      outputHash = hash;
-      SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
-      impureEnvVars = lib.fetchers.proxyImpureEnvVars;
-    };
+    let
+      parsedVersion = parseVersion version;
+
+      segments = filter (s: typeOf s != "list") (split "/" goPackagePath);
+      seg = elemAt segments;
+      domain = seg 0;
+
+      url = "git@${domain}:${seg 1}/${seg 2}.git";
+      sourceRoot = lib.concatStringsSep "/" (lib.drop 3 segments);
+
+      src = builtins.fetchGit
+        {
+          inherit url;
+        } // lib.optionalAttrs isNix24Plus {
+        allRefs = true;
+      } // lib.optionalAttrs (parsedVersion.rev != "") {
+        # Nix has a bug handling short revs so this won't work.
+        inherit (parsedVersion) rev;
+      } // lib.optionalAttrs (parsedVersion.version != "v0.0.0") {
+        ref = "refs/tags/${parsedVersion.version}";
+      };
+
+    in
+    if sourceRoot != "" then
+      stdenvNoCC.mkDerivation
+        {
+          name = "${baseNameOf goPackagePath}_${version}-wrapper";
+          inherit src;
+          dontConfigure = true;
+          dontBuild = true;
+          dontFixup = true;
+          installPhase = ''
+            cd "${sourceRoot}"
+            cp -a . $out
+          '';
+        } else src;
 
   buildGoApplication =
     { modules
@@ -43,6 +103,7 @@ let
     , allowGoReference ? false
     , meta ? { }
     , passthru ? { }
+    , srcOverrides ? self: super: { }
     , ...
     }@attrs:
     let
@@ -69,15 +130,16 @@ let
           nativeBuildInputs = [ go ];
           json = builtins.toJSON modulesStruct;
 
-          sources = builtins.toJSON (
-            lib.mapAttrs
-              (goPackagePath: meta: fetchGoModule {
-                goPackagePath = meta.replaced or goPackagePath;
-                inherit (meta) version hash;
-                inherit go;
-              })
-              modulesStruct.mod
-          );
+          sources = builtins.toJSON (builtins.removeAttrs
+            ((lib.makeExtensible (self: (
+              lib.mapAttrs
+                (goPackagePath: meta: fetchGoModule {
+                  goPackagePath = meta.replaced or goPackagePath;
+                  inherit (meta) version hash;
+                  inherit go;
+                })
+                modulesStruct.mod
+            ))).extend srcOverrides) [ "extend" "__unfix__" ]);
 
           passAsFile = [ "json" "sources" ];
         }

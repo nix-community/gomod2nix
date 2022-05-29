@@ -98,18 +98,6 @@ let
     }
   );
 
-  parseVersion = ver:
-    let
-      m = elemAt (match "([^-]+)-?([^-]*)-?([^-]*)" ver);
-      v = elemAt (match "([^+]+)\\+?(.*)" (m 0));
-    in
-    {
-      version = v 0;
-      versionSuffix = v 1;
-      date = m 1;
-      rev = m 2;
-    };
-
   parseReplace = data: (
     data // {
       replace =
