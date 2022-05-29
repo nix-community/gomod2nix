@@ -19,6 +19,20 @@ jobs:
     - name: Check format
       run: nix-shell --run 'nixpkgs-fmt --check .'
 
+  gomod2nix_toml:
+    runs-on: ubuntu-latest
+    env:
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
+    steps:
+    - uses: cachix/install-nix-action@v12
+    - uses: actions/checkout@v1
+    - name: "Build gomod2nix"
+      run: nix-shell --run "go build"
+    - name: Run gomod2nix
+      run: nix-shell --run gomod2nix
+    - name: Check diff
+      run: git diff --exit-code gomod2nix.toml
+
   list-jobs:
     runs-on: ubuntu-latest
     outputs:
