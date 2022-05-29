@@ -9,23 +9,21 @@ import (
 	"sort"
 )
 
-type fetchInfo struct {
-	Type   string `toml:"type"`
-	URL    string `toml:"url"`
-	Rev    string `toml:"rev"`
-	Sha256 string `toml:"sha256"`
+type Package struct {
+	GoPackagePath string `json:"-"`
+	Version       string `json:"version"`
+	Hash          string `json:"hash"`
+	ReplacedPath  string `json:"replaced,omitempty"`
 }
 
-type packageT struct {
-	SumVersion string     `toml:"sumVersion"`
-	RelPath    string     `toml:"relPath,omitempty"`
-	VendorPath string     `toml:"vendorPath,omitempty"`
-	Fetch      *fetchInfo `toml:"fetch"`
+type Output struct {
+	SchemaVersion int                 `json:"schema"`
+	Mod           map[string]*Package `json:"mod"`
 }
 
 func main() {
 
-	pkgs := make(map[string]*packageT)
+	var output Output
 	sources := make(map[string]string)
 
 	b, err := ioutil.ReadFile(os.Getenv("sourcesPath"))
@@ -43,10 +41,12 @@ func main() {
 		panic(err)
 	}
 
-	err = json.Unmarshal(b, &pkgs)
+	err = json.Unmarshal(b, &output)
 	if err != nil {
 		panic(err)
 	}
+
+	pkgs := output.Mod
 
 	keys := make([]string, 0, len(pkgs))
 	for key := range pkgs {
@@ -58,12 +58,8 @@ func main() {
 	for i := len(keys) - 1; i >= 0; i-- {
 		key := keys[i]
 		src := sources[key]
-		pkg := pkgs[key]
 
 		paths := []string{key}
-		if pkg.VendorPath != "" {
-			paths = append(paths, pkg.VendorPath)
-		}
 
 		for _, path := range paths {
 

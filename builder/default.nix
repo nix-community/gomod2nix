@@ -1,10 +1,13 @@
 { stdenv
+, stdenvNoCC
 , runCommand
 , buildEnv
 , lib
 , fetchgit
 , removeReferencesTo
-, go
+, jq
+, cacert
+, pkgs
 }:
 let
 
@@ -12,8 +15,27 @@ let
 
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
 
+  fetchGoModule =
+    { hash
+    , goPackagePath
+    , version
+    , go ? pkgs.go
+    }:
+    stdenvNoCC.mkDerivation {
+      name = "${baseNameOf goPackagePath}_${version}";
+      builder = ./fetch.sh;
+      inherit goPackagePath version;
+      nativeBuildInputs = [ go jq ];
+      outputHashMode = "recursive";
+      outputHashAlgo = null;
+      outputHash = hash;
+      SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+      impureEnvVars = lib.fetchers.proxyImpureEnvVars;
+    };
+
   buildGoApplication =
     { modules
+    , go ? pkgs.go
     , src
     , pwd ? null
     , CGO_ENABLED ? "0"
@@ -47,17 +69,15 @@ let
           nativeBuildInputs = [ go ];
           json = builtins.toJSON modulesStruct;
 
-          sources = builtins.toJSON (lib.mapAttrs
-            (goPackagePath: meta:
-              let
-                src = fetchgit {
-                  inherit (meta.fetch) url sha256 rev;
-                  fetchSubmodules = true;
-                };
-                srcPath = "${src}/${meta.relPath or ""}";
-              in
-              srcPath)
-            modulesStruct);
+          sources = builtins.toJSON (
+            lib.mapAttrs
+              (goPackagePath: meta: fetchGoModule {
+                goPackagePath = meta.replaced or goPackagePath;
+                inherit (meta) version hash;
+                inherit go;
+              })
+              modulesStruct.mod
+          );
 
           passAsFile = [ "json" "sources" ];
         }

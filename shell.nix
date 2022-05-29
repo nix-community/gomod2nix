@@ -16,16 +16,11 @@
   )
 }:
 
-let
-  pythonEnv = pkgs.python3.withPackages (_: [ ]);
-
-in
 pkgs.mkShell {
+  NIX_PATH = "nixpkgs=${builtins.toString pkgs.path}";
   buildInputs = [
-    pkgs.nix-prefetch-git
     pkgs.nixpkgs-fmt
-    pkgs.go
+    pkgs.gomod2nix.go
     pkgs.gomod2nix
-    pythonEnv
   ];
 }

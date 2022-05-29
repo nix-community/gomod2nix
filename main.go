@@ -4,17 +4,15 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"github.com/tweag/gomod2nix/fetch"
-	"github.com/tweag/gomod2nix/formats/gomod2nix"
+	generate "github.com/tweag/gomod2nix/generate"
+	schema "github.com/tweag/gomod2nix/schema"
 	"io/ioutil"
 	"path/filepath"
 )
 
 func main() {
 
-	var keepGoing = flag.Bool("keep-going", false, "Whether to panic or not if a rev cannot be resolved (default \"false\")")
 	var directory = flag.String("dir", "./", "Go project directory")
-	var maxJobs = flag.Int("jobs", 10, "Number of max parallel jobs")
 	var outDirFlag = flag.String("outdir", "", "output directory (if different from project directory)")
 	flag.Parse()
 
@@ -23,17 +21,14 @@ func main() {
 		outDir = *directory
 	}
 
-	goSumPath := filepath.Join(*directory, "go.sum")
-	goModPath := filepath.Join(*directory, "go.mod")
-
 	goMod2NixPath := filepath.Join(outDir, "gomod2nix.toml")
 	outFile := goMod2NixPath
-	pkgs, err := fetch.FetchPackages(goModPath, goSumPath, goMod2NixPath, *maxJobs, *keepGoing)
+	pkgs, err := generate.GeneratePkgs(*directory, goMod2NixPath)
 	if err != nil {
 		panic(err)
 	}
 
-	output, err := gomod2nix.Marshal(pkgs)
+	output, err := schema.Marshal(pkgs)
 	if err != nil {
 		panic(err)
 	}

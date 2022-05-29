@@ -6,7 +6,7 @@
 , pkg-config
 , which
 , libvirt
-, vmnet
+, darwin
 }:
 
 buildGoApplication rec {
@@ -26,7 +26,7 @@ buildGoApplication rec {
 
   nativeBuildInputs = [ go-bindata installShellFiles pkg-config which ];
 
-  buildInputs = if stdenv.isDarwin then [ vmnet ] else if stdenv.isLinux then [ libvirt ] else null;
+  buildInputs = if stdenv.isDarwin then [ darwin.apple_sdk.frameworks.vmnet ] else if stdenv.isLinux then [ libvirt ] else null;
 
   buildPhase = ''
     make COMMIT=${src.rev}
@@ -45,11 +45,4 @@ buildGoApplication rec {
     done
   '';
 
-  meta = with stdenv.lib; {
-    homepage = "https://minikube.sigs.k8s.io";
-    description = "A tool that makes it easy to run Kubernetes locally";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ ebzzry copumpkin vdemeester atkinschang Chili-Man ];
-    platforms = platforms.unix;
-  };
 }

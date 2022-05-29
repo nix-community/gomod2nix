@@ -17,18 +17,48 @@ jobs:
     - uses: cachix/install-nix-action@v12
     - uses: actions/checkout@v1
     - name: Check format
-      run: ./check-fmt
+      run: nix-shell --run 'nixpkgs-fmt --check .'
 
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        nixpkgs_version: ["master"]
-        # os: [ubuntu-latest, macos-latest]
+  gomod2nix_toml:
+    runs-on: ubuntu-latest
     env:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
     steps:
     - uses: cachix/install-nix-action@v12
     - uses: actions/checkout@v1
-    - run: nix-shell --run 'make'
+    - name: "Build gomod2nix"
+      run: nix-shell --run "go build"
+    - name: Run gomod2nix
+      run: nix-shell --run gomod2nix
+    - name: Check diff
+      run: git diff --exit-code gomod2nix.toml
+
+  list-jobs:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v17
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - id: set-matrix
+        run: |
+          set -euo pipefail
+          matrix="$(go run tests/run.go list | jq --raw-input --slurp -rcM '{attr: split("\n")[:-1], os: ["ubuntu-latest"]}')"
+          echo "::set-output name=matrix::$matrix"
+
+  builds:
+    needs: list-jobs
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{fromJSON(needs.list-jobs.outputs.matrix)}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v17
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: "Build gomod2nix"
+        run: nix-shell --run "go build"
+      - name: "Run test: ${{ matrix.attr }}"
+        run: nix-shell --run "go run tests/run.go run ${{ matrix.attr }}"

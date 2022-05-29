@@ -1,2 +1,2 @@
 all:
-	python ./run.py
+	go run ./run.go

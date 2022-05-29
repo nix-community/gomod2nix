@@ -23,11 +23,4 @@ buildGoApplication rec {
     $out/bin/helm completion zsh > helm.zsh
     installShellCompletion helm.{bash,zsh}
   '';
-
-  meta = with stdenv.lib; {
-    homepage = "https://github.com/kubernetes/helm";
-    description = "A package manager for kubernetes";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ rlupton20 edude03 saschagrunert Frostman Chili-Man ];
-  };
 }
