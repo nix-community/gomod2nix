@@ -29,8 +29,8 @@ schema = 1
     version = "v0.1.0"
     hash = "sha256-QT65kTrNypS5GPWGvgnCpGLPlVbQAL4IYvuqAKhepb4="
   [mod."github.com/nix-community/go-nix"]
-    version = "v0.0.0-20220528121639-b940fb0a12d8"
-    hash = "sha256-r6fq1mu0gRFqdI6msuAZp3ZoncAw5L16oBFPUA9vPYk="
+    version = "v0.0.0-20220531154832-fb763dcb3ffc"
+    hash = "sha256-vCoRCe1DcyNXfz6gun9wGBu/o+j6WGcS8mbFmXZfyps="
   [mod."github.com/pkg/errors"]
     version = "v0.9.1"
     hash = "sha256-mNfQtcrQmu3sNg/7IwiieKWOgFQOVVe2yXgKBpe/wZw="

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/nix-community/go-nix/pkg/nar"
@@ -113,7 +114,9 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 			}).Info("Calculating NAR hash")
 
 			h := sha256.New()
-			err := nar.DumpPath(h, dl.Dir)
+			err := nar.DumpPathFilter(h, dl.Dir, func(name string, nodeType nar.NodeType) bool {
+				return strings.ToLower(filepath.Base(name)) != ".ds_store"
+			})
 			if err != nil {
 				return err
 			}
