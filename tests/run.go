@@ -91,6 +91,7 @@ func getTestDirs(rootDir string) ([]string, error) {
 		blacklist = []string{
 			"helm",
 			"minikube",
+			"cross",
 		}
 	}
 
