@@ -8,6 +8,15 @@
   outputs = { self, nixpkgs, utils }:
     {
       overlays.default = import ./overlay.nix;
+
+      templates = {
+        app = {
+          path = ./templates/app;
+          description = "Gomod2nix packaged application";
+        };
+      };
+      defaultTemplate = self.templates.app;
+
     } //
     (utils.lib.eachDefaultSystem
       (system:
