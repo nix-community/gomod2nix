@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -14,14 +13,8 @@ import (
 	"sync"
 )
 
-type testError struct {
-	testDir string
-	stdout  bytes.Buffer
-	stderr  bytes.Buffer
-}
-
 func runProcess(prefix string, command string, args ...string) error {
-	fmt.Println(fmt.Sprintf("%s: Executing %s %s", prefix, command, args))
+	fmt.Printf("%s: Executing %s %s\n", prefix, command, args)
 
 	cmd := exec.Command(command, args...)
 
@@ -42,7 +35,7 @@ func runProcess(prefix string, command string, args ...string) error {
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
 			line := scanner.Bytes()
-			fmt.Println(fmt.Sprintf("%s: %s", prefix, line))
+			fmt.Printf("%s: %s\n", prefix, line)
 		}
 		done <- struct{}{}
 	}()
@@ -118,7 +111,7 @@ func runTests(rootDir string, testDirs []string) error {
 	cmdErrChan := make(chan error)
 	for _, testDir := range testDirs {
 		testDir := testDir
-		fmt.Println(fmt.Sprintf("Running test for: '%s'", testDir))
+		fmt.Printf("Running test for: '%s'\n", testDir)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
