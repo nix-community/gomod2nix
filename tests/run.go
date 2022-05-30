@@ -70,13 +70,16 @@ func runTest(rootDir string, testDir string) error {
 	prefix := testDir
 	cmdPath := filepath.Join(rootDir, "..", "gomod2nix")
 	testDir = filepath.Join(rootDir, testDir)
-	err := runProcess(prefix, cmdPath, "--dir", testDir, "--outdir", testDir)
-	if err != nil {
-		return err
+
+	if _, err := os.Stat(filepath.Join(testDir, "go.mod")); err == nil {
+		err := runProcess(prefix, cmdPath, "--dir", testDir, "--outdir", testDir)
+		if err != nil {
+			return err
+		}
 	}
 
 	buildExpr := fmt.Sprintf("with (import <nixpkgs> { overlays = [ (import %s/../overlay.nix) ]; }); callPackage %s {}", rootDir, testDir)
-	err = runProcess(prefix, "nix-build", "--no-out-link", "--expr", buildExpr)
+	err := runProcess(prefix, "nix-build", "--no-out-link", "--expr", buildExpr)
 	if err != nil {
 		return err
 	}
