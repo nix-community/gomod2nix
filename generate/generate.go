@@ -30,7 +30,7 @@ type goModDownload struct {
 	GoModSum string
 }
 
-func GeneratePkgs(directory string, goMod2NixPath string) ([]*schema.Package, error) {
+func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
 	goModPath := filepath.Join(directory, "go.mod")
 
 	log.WithFields(log.Fields{
@@ -81,7 +81,7 @@ func GeneratePkgs(directory string, goMod2NixPath string) ([]*schema.Package, er
 		log.Info("Done downloading dependencies")
 	}
 
-	executor := lib.NewParallellExecutor()
+	executor := lib.NewParallellExecutor(numWorkers)
 	var mux sync.Mutex
 
 	cache := schema.ReadCache(goMod2NixPath)
@@ -108,6 +108,10 @@ func GeneratePkgs(directory string, goMod2NixPath string) ([]*schema.Package, er
 		}
 
 		executor.Add(func() error {
+			log.WithFields(log.Fields{
+				"goPackagePath": goPackagePath,
+			}).Info("Calculating NAR hash")
+
 			h := sha256.New()
 			err := nar.DumpPath(h, dl.Dir)
 			if err != nil {
@@ -125,6 +129,10 @@ func GeneratePkgs(directory string, goMod2NixPath string) ([]*schema.Package, er
 			}
 
 			addPkg(pkg)
+
+			log.WithFields(log.Fields{
+				"goPackagePath": goPackagePath,
+			}).Info("Done calculating NAR hash")
 
 			return nil
 		})
