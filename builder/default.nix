@@ -30,7 +30,7 @@ let
       outputHashAlgo = null;
       outputHash = hash;
       SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
-      impureEnvVars = lib.fetchers.proxyImpureEnvVars;
+      impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
   buildGoApplication =
