@@ -19,6 +19,16 @@ jobs:
     - name: Check format
       run: nix-shell --run 'nixpkgs-fmt --check .'
 
+  golangci-lint:
+    runs-on: ubuntu-latest
+    env:
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
+    steps:
+    - uses: cachix/install-nix-action@v12
+    - uses: actions/checkout@v1
+    - name: Check format
+      run: nix-shell --run 'golangci-lint run'
+
   gomod2nix_toml:
     runs-on: ubuntu-latest
     env:
