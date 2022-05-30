@@ -2,8 +2,8 @@ schema = 1
 
 [mod]
   [mod."github.com/BurntSushi/toml"]
-    version = "v0.3.1"
-    hash = "sha256-Rqak1dE/Aj/+Kx1/pl3Hifgt+Q3OzuZ5fJR+/x3nTbo="
+    version = "v1.1.0"
+    hash = "sha256-1Mib3Aj/YhrlwA3o3x9orRRkVlYa5JRDQfNdtaUyeu0="
   [mod."github.com/alecthomas/kong"]
     version = "v0.5.0"
     hash = "sha256-6OtTXBnZSVvbdgkAfah2EuX20Fg/2v3JRSnKq1QoJbA="
@@ -38,8 +38,8 @@ schema = 1
     version = "v1.0.0"
     hash = "sha256-/FtmHnaGjdvEIKAJtrUfEhV7EVo5A/eYrtdnUkuxLDA="
   [mod."github.com/sirupsen/logrus"]
-    version = "v1.7.0"
-    hash = "sha256-VClDP4DJDdMFTMGWR7I8L4hQRMU7cOphLRyUfxCvnNY="
+    version = "v1.8.1"
+    hash = "sha256-vUIDlLXYBD74+JqdoSx+W3J6r5cOk63heo0ElsHizoM="
   [mod."github.com/stretchr/objx"]
     version = "v0.1.0"
     hash = "sha256-az0Vd4MG3JXfaYbj0Q6AOmNkrXgmXDeQm8+BBiDXmdA="
@@ -50,8 +50,8 @@ schema = 1
     version = "v0.0.0-20191011191535-87dc89f01550"
     hash = "sha256-T0CaT5ri68osnd9VdNTZ0Ys+exaVbX4iC8MN60UNkXw="
   [mod."golang.org/x/mod"]
-    version = "v0.3.0"
-    hash = "sha256-c+KKzeDUDxrKIx8un1DpETlTK+DmHP+zUjRZrgs0ejo="
+    version = "v0.5.1"
+    hash = "sha256-+r/pAtwGHJiGISV/je8ZPXCFukTTGbZ8y0p3zb8wGcs="
   [mod."golang.org/x/net"]
     version = "v0.0.0-20190620200207-3b0461eec859"
     hash = "sha256-lVNbp7zOBVbvzA1fFR4SkUskYfAMt2eILoWuDgk0oS4="
@@ -59,8 +59,8 @@ schema = 1
     version = "v0.0.0-20190423024810-112230192c58"
     hash = "sha256-1lGQ6frW6gwuLzwomu530IsFh7vlQWQOphQ0IQeZIhY="
   [mod."golang.org/x/sys"]
-    version = "v0.0.0-20220519141025-dcacdad47464"
-    hash = "sha256-N4P3QkaeRf05dFMadS1IvhkNV4VS6cf/zkTBY1zwWv4="
+    version = "v0.0.0-20220520151302-bc2c85ada10a"
+    hash = "sha256-3xm4LbLhZjjeb8scaNFRa9zYb8z2fZj+/JBcoyXGPR8="
   [mod."golang.org/x/text"]
     version = "v0.3.0"
     hash = "sha256-0FFbaxF1ZuAQF3sCcA85e8MO6prFeHint36inija4NY="
@@ -68,8 +68,8 @@ schema = 1
     version = "v0.0.0-20191119224855-298f0cb1881e"
     hash = "sha256-xhp3MWK3dr+PJgfOGaFAURPdw/ar+GRb+wHBnCG8Tg0="
   [mod."golang.org/x/xerrors"]
-    version = "v0.0.0-20191204190536-9bdfabe68543"
-    hash = "sha256-DCyizuMVp9AhKGv0vL/iRZz/R6jWFmQxDWj1NFeITvo="
+    version = "v0.0.0-20220517211312-f3a8303e98df"
+    hash = "sha256-DaZLVDk7I1uScyvUeHGyosnGm6xZNq6XIJlJfwaX6hs="
   [mod."gopkg.in/check.v1"]
     version = "v1.0.0-20180628173108-788fd7840127"
     hash = "sha256-KsRJNTprd1UijnJusbHwQGM7Bdm45Jt/QL+cIUGNa2w="
