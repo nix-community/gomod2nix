@@ -9,17 +9,19 @@ type ParallellExecutor struct {
 	errChan chan error
 	wg      *sync.WaitGroup
 	mux     *sync.Mutex
+	guard   chan struct{}
 
 	// Error returned by Wait(), cached for other Wait() invocations
 	err  error
 	done bool
 }
 
-func NewParallellExecutor() *ParallellExecutor {
+func NewParallellExecutor(maxWorkers int) *ParallellExecutor {
 	return &ParallellExecutor{
 		errChan: make(chan error),
 		mux:     new(sync.Mutex),
 		wg:      new(sync.WaitGroup),
+		guard:   make(chan struct{}, maxWorkers),
 
 		err:  nil,
 		done: false,
@@ -29,8 +31,13 @@ func NewParallellExecutor() *ParallellExecutor {
 func (e *ParallellExecutor) Add(fn func() error) {
 	e.wg.Add(1)
 
+	e.guard <- struct{}{} // Block until a worker is available
+
 	go func() {
 		defer e.wg.Done()
+		defer func() {
+			<-e.guard
+		}()
 
 		err := fn()
 		if err != nil {
