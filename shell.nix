@@ -22,5 +22,6 @@ pkgs.mkShell {
     pkgs.nixpkgs-fmt
     pkgs.gomod2nix.go
     pkgs.gomod2nix
+    pkgs.golangci-lint
   ];
 }
