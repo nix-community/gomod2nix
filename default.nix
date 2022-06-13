@@ -29,4 +29,10 @@ buildGoApplication {
     wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ go ]}
   '';
 
+  meta = {
+    description = "Convert applications using Go modules -> Nix";
+    homepage = "https://github.com/tweag/gomod2nix";
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.adisbladis ];
+  };
 }
