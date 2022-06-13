@@ -154,7 +154,6 @@ let
     { modules
     , src
     , pwd ? null
-    , CGO_ENABLED ? "0"
     , nativeBuildInputs ? [ ]
     , allowGoReference ? false
     , meta ? { }
@@ -195,7 +194,6 @@ let
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
-        inherit CGO_ENABLED;
 
         GO_NO_VENDOR_CHECKS = "1";
 
