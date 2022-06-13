@@ -8,6 +8,7 @@
 , jq
 , cacert
 , pkgs
+, pkgsBuildBuild
 }:
 let
 
@@ -18,9 +19,10 @@ let
   # Internal only build-time attributes
   internal =
     let
-      mkInternalPkg = name: src: pkgs.runCommand "gomod2nix-${name}"
+      mkInternalPkg = name: src: pkgsBuildBuild.runCommand "gomod2nix-${name}"
         {
-          nativeBuildInputs = [ pkgs.go ];
+          inherit (pkgsBuildBuild.go) GOOS GOARCH;
+          nativeBuildInputs = [ pkgsBuildBuild.go ];
         } ''
         export HOME=$(mktemp -d)
         cp ${src} src.go
