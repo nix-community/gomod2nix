@@ -33,6 +33,96 @@ let
       impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
+  mkVendorEnv = { go, modulesStruct, localReplaceCommands ? [ ] }: runCommand "vendor-env"
+    {
+      nativeBuildInputs = [ go ];
+      json = builtins.toJSON modulesStruct;
+
+      sources = builtins.toJSON (
+        lib.mapAttrs
+          (goPackagePath: meta: fetchGoModule {
+            goPackagePath = meta.replaced or goPackagePath;
+            inherit (meta) version hash;
+            inherit go;
+          })
+          modulesStruct.mod
+      );
+
+      passAsFile = [ "json" "sources" ];
+    }
+    (
+      ''
+        mkdir vendor
+
+        export GOCACHE=$TMPDIR/go-cache
+        export GOPATH="$TMPDIR/go"
+
+        go run ${./symlink.go}
+        ${lib.concatStringsSep "\n" localReplaceCommands}
+
+        mv vendor $out
+      ''
+    );
+
+  mkGoEnv =
+    { pwd
+    }@attrs:
+    let
+      goMod = parseGoMod (builtins.readFile "${builtins.toString pwd}/go.mod");
+      modulesStruct = builtins.fromTOML (builtins.readFile "${builtins.toString pwd}/gomod2nix.toml");
+
+      go = attrs.go or (
+        let
+          goVersion = goMod.go;
+          goAttr = "go_" + (lib.replaceStrings [ "." ] [ "_" ] goVersion);
+        in
+        (
+          if builtins.hasAttr goAttr pkgs then pkgs.${goAttr}
+          else builtins.trace "go.mod specified Go version ${goVersion} but doesn't exist. Falling back to ${pkgs.go.version}." pkgs.go
+        )
+      );
+
+      vendorEnv = mkVendorEnv {
+        inherit go modulesStruct;
+      };
+
+    in
+    stdenv.mkDerivation {
+      name = "${builtins.baseNameOf goMod.module}-env";
+
+      dontUnpack = true;
+      dontConfigure = true;
+      dontInstall = true;
+
+      propagatedNativeBuildInputs = [ go ];
+
+      GO_NO_VENDOR_CHECKS = "1";
+
+      GO111MODULE = "on";
+      GOFLAGS = "-mod=vendor";
+
+      preferLocalBuild = true;
+
+      buildPhase = ''
+        mkdir $out
+
+        export GOCACHE=$TMPDIR/go-cache
+        export GOPATH="$out"
+        export GOSUMDB=off
+        export GOPROXY=off
+
+      '' + lib.optionalString (lib.pathExists (pwd + "/tools./.go")) ''
+        mkdir source
+        cp ${pwd + "/go.mod"} source/go.mod
+        cp ${pwd + "/go.sum"} source/go.sum
+        cp ${pwd + "/tools.go"} source/tools.go
+        cd source
+        ln -s ${vendorEnv} vendor
+
+        go run ${./install.go}
+      '';
+    };
+
   buildGoApplication =
     { modules
     , go ? pkgs.go
@@ -64,38 +154,11 @@ let
         in
         if pwd != null then commands else [ ];
 
-      vendorEnv = runCommand "vendor-env"
-        {
-          nativeBuildInputs = [ go ];
-          json = builtins.toJSON modulesStruct;
-
-          sources = builtins.toJSON (
-            lib.mapAttrs
-              (goPackagePath: meta: fetchGoModule {
-                goPackagePath = meta.replaced or goPackagePath;
-                inherit (meta) version hash;
-                inherit go;
-              })
-              modulesStruct.mod
-          );
-
-          passAsFile = [ "json" "sources" ];
-        }
-        (
-          ''
-            mkdir vendor
-
-            export GOCACHE=$TMPDIR/go-cache
-            export GOPATH="$TMPDIR/go"
-
-            go run ${./symlink.go}
-            ${lib.concatStringsSep "\n" localReplaceCommands}
-
-            mv vendor $out
-          ''
-        );
-
       removeReferences = [ ] ++ lib.optional (!allowGoReference) go;
+
+      vendorEnv = mkVendorEnv {
+        inherit go modulesStruct localReplaceCommands;
+      };
 
       package = stdenv.mkDerivation (attrs // {
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
@@ -230,4 +293,6 @@ let
     package;
 
 in
-buildGoApplication
+{
+  inherit buildGoApplication mkGoEnv;
+}
