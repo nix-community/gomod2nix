@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 type Package struct {
 	GoPackagePath string `toml:"-"`
@@ -18,12 +18,20 @@ type Package struct {
 type Output struct {
 	SchemaVersion int                 `toml:"schema"`
 	Mod           map[string]*Package `toml:"mod"`
+
+	// Packages with passed import paths trigger `go install` based on this list
+	Install []string `toml:"install,omitempty"`
+
+	// Packages with passed import paths has a "default package" which pname & version is inherit from
+	GoPackagePath string `toml:"goPackagePath,omitempty"`
 }
 
-func Marshal(pkgs []*Package) ([]byte, error) {
+func Marshal(pkgs []*Package, goPackagePath string, install []string) ([]byte, error) {
 	out := &Output{
 		SchemaVersion: SchemaVersion,
 		Mod:           make(map[string]*Package),
+		Install:       install,
+		GoPackagePath: goPackagePath,
 	}
 
 	for _, pkg := range pkgs {

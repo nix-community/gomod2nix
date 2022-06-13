@@ -13,10 +13,14 @@ import (
 	"sync"
 )
 
-func runProcess(prefix string, command string, args ...string) error {
+func runProcess(prefix string, env []string, command string, args ...string) error {
 	fmt.Printf("%s: Executing %s %s\n", prefix, command, args)
 
 	cmd := exec.Command(command, args...)
+
+	if env != nil {
+		cmd.Env = env
+	}
 
 	stdoutReader, err := cmd.StdoutPipe()
 	if err != nil {
@@ -61,18 +65,27 @@ func contains(haystack []string, needle string) bool {
 
 func runTest(rootDir string, testDir string) error {
 	prefix := testDir
-	cmdPath := filepath.Join(rootDir, "..", "gomod2nix")
 	testDir = filepath.Join(rootDir, testDir)
+	cmdPath := filepath.Join(rootDir, "..", "gomod2nix")
 
-	if _, err := os.Stat(filepath.Join(testDir, "go.mod")); err == nil {
-		err := runProcess(prefix, cmdPath, "--dir", testDir, "--outdir", testDir)
+	if _, err := os.Stat(filepath.Join(testDir, "script")); err == nil {
+		env := append(os.Environ(), "GOMOD2NIX="+cmdPath)
+		err := runProcess(prefix, env, filepath.Join(testDir, "script"))
 		if err != nil {
 			return err
+		}
+
+	} else {
+		if _, err := os.Stat(filepath.Join(testDir, "go.mod")); err == nil {
+			err := runProcess(prefix, nil, cmdPath, "--dir", testDir, "--outdir", testDir)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	buildExpr := fmt.Sprintf("with (import <nixpkgs> { overlays = [ (import %s/../overlay.nix) ]; }); callPackage %s {}", rootDir, testDir)
-	err := runProcess(prefix, "nix-build", "--no-out-link", "--expr", buildExpr)
+	err := runProcess(prefix, nil, "nix-build", "--no-out-link", "--expr", buildExpr)
 	if err != nil {
 		return err
 	}

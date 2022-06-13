@@ -1,3 +1,4 @@
 /gomod2nix
 result*
 /tests/*/gomod2nix.toml
+/tests/*/go.mod

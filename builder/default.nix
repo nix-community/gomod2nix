@@ -151,8 +151,8 @@ let
     };
 
   buildGoApplication =
-    { modules
-    , src
+    { modules ? pwd + "/gomod2nix.toml"
+    , src ? pwd
     , pwd ? null
     , nativeBuildInputs ? [ ]
     , allowGoReference ? false
@@ -190,10 +190,18 @@ let
         inherit go modulesStruct localReplaceCommands;
       };
 
-      package = stdenv.mkDerivation (attrs // {
+      defaultPackage = modulesStruct.goPackagePath or "";
+
+      package = stdenv.mkDerivation (lib.optionalAttrs (defaultPackage != "")
+        {
+          pname = attrs.pname or baseNameOf defaultPackage;
+          version = lib.removePrefix "v" (modulesStruct.mod.${defaultPackage}).version;
+        } // attrs // {
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
+
+        inherit src;
 
         GO_NO_VENDOR_CHECKS = "1";
 
@@ -301,6 +309,12 @@ let
           mkdir -p $out
           dir="$GOPATH/bin"
           [ -e "$dir" ] && cp -r $dir $out
+
+          ${lib.optionalString (lib.hasAttr "install" modulesStruct) ''
+            ${lib.concatStringsSep "\n" (map (x: "go install ${x}") (modulesStruct.install or [ ]))}
+            mkdir -p $out/bin
+            cp -a $GOPATH/bin/* $out/bin/
+          ''}
 
           runHook postInstall
         '';
