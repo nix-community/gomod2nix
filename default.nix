@@ -1,4 +1,4 @@
-{ buildGoApplication, go, nix, lib, makeWrapper, nix-prefetch-git }:
+{ stdenv, buildGoApplication, go, nix, lib, makeWrapper, installShellFiles }:
 
 buildGoApplication {
   inherit go;
@@ -18,9 +18,15 @@ buildGoApplication {
 
   subPackages = [ "." ];
 
-  nativeBuildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper installShellFiles ];
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.hostPlatform == stdenv.targetPlatform) ''
+    $out/bin/gomod2nix completion bash > gomod2nix.bash
+    $out/bin/gomod2nix completion fish > gomod2nix.fish
+    $out/bin/gomod2nix completion zsh > _gomod2nix
+    installShellCompletion gomod2nix.{bash,fish} _gomod2nix
+  '' + ''
     wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ go ]}
   '';
+
 }
