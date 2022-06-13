@@ -40,6 +40,9 @@ schema = 1
   [mod."github.com/cpuguy83/go-md2man"]
     version = "v1.0.10"
     hash = "sha256-XP8oKAx5LgQ0fO1rjO9tWnbXB431VOzXVaRDPUP900g="
+  [mod."github.com/cpuguy83/go-md2man/v2"]
+    version = "v2.0.1"
+    hash = "sha256-R+8iYit0mZjCxiGlp2C3Y5tGhySSNFU1v6wqsWKGBPM="
   [mod."github.com/davecgh/go-spew"]
     version = "v1.1.1"
     hash = "sha256-nhzSUrE1fCkN0+RL04N4h8jWmRFPPPWbCuDc7Ss0akI="
@@ -130,6 +133,9 @@ schema = 1
   [mod."github.com/russross/blackfriday"]
     version = "v1.5.2"
     hash = "sha256-7MjJB7KZoNFTBo5Qzc3LL9QKrzWf9keqt5lh7tl360s="
+  [mod."github.com/russross/blackfriday/v2"]
+    version = "v2.1.0"
+    hash = "sha256-R+84l1si8az5yDqd5CYcFrTyNZ1eSYlpXKq6nFt4OTQ="
   [mod."github.com/sirupsen/logrus"]
     version = "v1.8.1"
     hash = "sha256-vUIDlLXYBD74+JqdoSx+W3J6r5cOk63heo0ElsHizoM="
@@ -143,14 +149,14 @@ schema = 1
     version = "v1.3.0"
     hash = "sha256-hbVF7F0YsgSybYEJa7W+Rz0As6OpgmpZOxB5JLFzAXc="
   [mod."github.com/spf13/cobra"]
-    version = "v0.0.5"
-    hash = "sha256-YovRLduyDxoYoz1tNVgh9rnebjFIaeNeeBzWYrREnXw="
+    version = "v1.4.0"
+    hash = "sha256-I6j9sD61Ztcc2W/WGeWo3ggYtnGTxNxZ2EFPdtO0UEY="
   [mod."github.com/spf13/jwalterweatherman"]
     version = "v1.0.0"
     hash = "sha256-KLftz+gaA5wSkvLqvQ7CuboB79kKEoTJvgTtrXatbiQ="
   [mod."github.com/spf13/pflag"]
-    version = "v1.0.3"
-    hash = "sha256-Vu3dUmDZASu8/sAVAXaBXawtbZhsL9nMo43vANOdNMU="
+    version = "v1.0.5"
+    hash = "sha256-w9LLYzxxP74WHT4ouBspH/iQZXjuAh2WQCHsuvyEjAw="
   [mod."github.com/spf13/viper"]
     version = "v1.3.2"
     hash = "sha256-8I/LyWr7cOKg+0NokEbewJ8WNz8hp0KLUW0WgNyGSaA="
@@ -218,8 +224,8 @@ schema = 1
     version = "v1.0.0-20190902080502-41f04d3bba15"
     hash = "sha256-Xl5gjoqU26M+Yxm6Xok5VHVpYT5hItwsN7d2Wj9L020="
   [mod."gopkg.in/yaml.v2"]
-    version = "v2.2.2"
-    hash = "sha256-SjNLmGSxoYabOi/zdjymW3mSgaxaS39btBQ3/aUIkgc="
+    version = "v2.4.0"
+    hash = "sha256-uVEGglIedjOIGZzHW4YwN1VoRSTK8o0eGZqzd+TNdd0="
   [mod."gopkg.in/yaml.v3"]
     version = "v3.0.0-20210107192922-496545a6307b"
     hash = "sha256-j8yDji+vqsitpRZirpb4w/Em8nstgf28wpwkcrOlxBk="
