@@ -86,6 +86,20 @@ let
       ''
     );
 
+  # Select Go attribute based on version specified in go.mod
+  selectGo = attrs: goMod: attrs.go or (if goMod == null then pkgs.go else
+  (
+    let
+      goVersion = goMod.go;
+      goAttr = "go_" + (lib.replaceStrings [ "." ] [ "_" ] goVersion);
+    in
+    (
+      if builtins.hasAttr goAttr pkgs then pkgs.${goAttr}
+      else builtins.trace "go.mod specified Go version ${goVersion} but doesn't exist. Falling back to ${pkgs.go.version}." pkgs.go
+    )
+  ));
+
+
   mkGoEnv =
     { pwd
     }@attrs:
@@ -93,16 +107,7 @@ let
       goMod = parseGoMod (builtins.readFile "${builtins.toString pwd}/go.mod");
       modulesStruct = builtins.fromTOML (builtins.readFile "${builtins.toString pwd}/gomod2nix.toml");
 
-      go = attrs.go or (
-        let
-          goVersion = goMod.go;
-          goAttr = "go_" + (lib.replaceStrings [ "." ] [ "_" ] goVersion);
-        in
-        (
-          if builtins.hasAttr goAttr pkgs then pkgs.${goAttr}
-          else builtins.trace "go.mod specified Go version ${goVersion} but doesn't exist. Falling back to ${pkgs.go.version}." pkgs.go
-        )
-      );
+      go = selectGo attrs goMod;
 
       vendorEnv = mkVendorEnv {
         inherit go modulesStruct;
@@ -147,10 +152,8 @@ let
 
   buildGoApplication =
     { modules
-    , go ? pkgs.go
     , src
     , pwd ? null
-    , CGO_ENABLED ? "0"
     , nativeBuildInputs ? [ ]
     , allowGoReference ? false
     , meta ? { }
@@ -160,7 +163,10 @@ let
     let
       modulesStruct = builtins.fromTOML (builtins.readFile modules);
 
-      goMod = parseGoMod (builtins.readFile "${builtins.toString pwd}/go.mod");
+      goMod =
+        if pwd != null
+        then parseGoMod (builtins.readFile "${builtins.toString pwd}/go.mod")
+        else null;
       localReplaceCommands =
         let
           localReplaceAttrs = lib.filterAttrs (n: v: lib.hasAttr "path" v) goMod.replace;
@@ -176,6 +182,8 @@ let
         in
         if pwd != null then commands else [ ];
 
+      go = selectGo attrs goMod;
+
       removeReferences = [ ] ++ lib.optional (!allowGoReference) go;
 
       vendorEnv = mkVendorEnv {
@@ -186,7 +194,6 @@ let
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
-        inherit CGO_ENABLED;
 
         GO_NO_VENDOR_CHECKS = "1";
 
