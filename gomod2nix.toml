@@ -1,4 +1,4 @@
-schema = 2
+schema = 3
 
 [mod]
   [mod."cloud.google.com/go"]

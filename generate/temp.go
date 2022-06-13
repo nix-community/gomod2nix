@@ -12,12 +12,13 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/vcs"
 )
 
 type TempProject struct {
 	Dir           string
-	Install       []string
+	SubPackages   []string
 	GoPackagePath string
 }
 
@@ -35,9 +36,7 @@ func NewTempProject(packages []string) (*TempProject, error) {
 
 	var goPackagePath string
 
-	{
-		path := install[0]
-
+	for _, path := range install {
 		log.WithFields(log.Fields{
 			"path": path,
 		}).Info("Finding repo root for import path")
@@ -47,7 +46,15 @@ func NewTempProject(packages []string) (*TempProject, error) {
 			return nil, err
 		}
 
-		goPackagePath = repoRoot.Root
+		_, versionSuffix, _ := module.SplitPathVersion(path)
+
+		p := repoRoot.Root + versionSuffix
+
+		if goPackagePath != "" && p != goPackagePath {
+			return nil, fmt.Errorf("Mixed origin packages are not allowed")
+		}
+
+		goPackagePath = p
 	}
 
 	log.Info("Setting up temporary project")
@@ -132,31 +139,48 @@ func NewTempProject(packages []string) (*TempProject, error) {
 		}).Info("Done initializing go.mod")
 
 		// For every dependency fetch it
-		for _, imp := range packages {
+		{
 			log.WithFields(log.Fields{
 				"dir": dir,
-				"dep": imp,
-			}).Info("Getting dependency")
+			}).Info("Getting dependencies")
 
-			cmd := exec.Command("go", "get", "-d", imp)
+			args := []string{"get", "-d"}
+			args = append(args, packages...)
+
+			cmd := exec.Command("go", args...)
 			cmd.Dir = dir
 			cmd.Stderr = os.Stderr
 
 			_, err := cmd.Output()
 			if err != nil {
-				return nil, fmt.Errorf("error fetching '%s': %v", imp, err)
+				return nil, fmt.Errorf("error fetching: %v", err)
 			}
 
 			log.WithFields(log.Fields{
 				"dir": dir,
-				"dep": imp,
-			}).Info("Done getting dependency")
+			}).Info("Done getting dependencies")
+		}
+	}
+
+	subPackages := []string{}
+	{
+		prefix, versionSuffix, _ := module.SplitPathVersion(goPackagePath)
+		for _, path := range install {
+			p := strings.TrimPrefix(path, prefix)
+			p = strings.TrimSuffix(p, versionSuffix)
+			p = strings.TrimPrefix(p, "/")
+
+			if p == "" {
+				continue
+			}
+
+			subPackages = append(subPackages, p)
 		}
 	}
 
 	return &TempProject{
 		Dir:           dir,
-		Install:       install,
+		SubPackages:   subPackages,
 		GoPackagePath: goPackagePath,
 	}, nil
 }
