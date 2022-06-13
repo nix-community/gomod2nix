@@ -15,6 +15,28 @@ let
 
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
 
+  # Internal only build-time attributes
+  internal =
+    let
+      mkInternalPkg = name: src: pkgs.runCommand "gomod2nix-${name}"
+        {
+          nativeBuildInputs = [ pkgs.go ];
+        } ''
+        export HOME=$(mktemp -d)
+        cp ${src} src.go
+        go build -o $out src.go
+      '';
+    in
+    {
+
+      # Create a symlink tree of vendored sources
+      symlink = mkInternalPkg "symlink" ./symlink/symlink.go;
+
+      # Install development dependencies from tools.go
+      install = mkInternalPkg "symlink" ./install/install.go;
+
+    };
+
   fetchGoModule =
     { hash
     , goPackagePath
@@ -57,7 +79,7 @@ let
         export GOCACHE=$TMPDIR/go-cache
         export GOPATH="$TMPDIR/go"
 
-        go run ${./symlink.go}
+        ${internal.symlink}
         ${lib.concatStringsSep "\n" localReplaceCommands}
 
         mv vendor $out
@@ -119,7 +141,7 @@ let
         cd source
         ln -s ${vendorEnv} vendor
 
-        go run ${./install.go}
+        ${internal.install}
       '';
     };
 
