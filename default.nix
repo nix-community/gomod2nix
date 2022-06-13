@@ -20,7 +20,7 @@ buildGoApplication {
 
   nativeBuildInputs = [ makeWrapper installShellFiles ];
 
-  postInstall = lib.optionalString (stdenv.hostPlatform == stdenv.targetPlatform) ''
+  postInstall = lib.optionalString (stdenv.buildPlatform == stdenv.targetPlatform) ''
     $out/bin/gomod2nix completion bash > gomod2nix.bash
     $out/bin/gomod2nix completion fish > gomod2nix.fish
     $out/bin/gomod2nix completion zsh > _gomod2nix
