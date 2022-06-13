@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -31,7 +33,11 @@ type goModDownload struct {
 	GoModSum string
 }
 
-func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
+func sourceFilter(name string, nodeType nar.NodeType) bool {
+	return strings.ToLower(filepath.Base(name)) != ".ds_store"
+}
+
+func common(directory string) ([]*goModDownload, map[string]string, error) {
 	goModPath := filepath.Join(directory, "go.mod")
 
 	log.WithFields(log.Fields{
@@ -41,13 +47,13 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 	// Read go.mod
 	data, err := ioutil.ReadFile(goModPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Parse go.mod
 	mod, err := modfile.Parse(goModPath, data, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Map repos -> replacement repo
@@ -66,7 +72,7 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 		cmd.Dir = directory
 		stdout, err := cmd.Output()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		dec := json.NewDecoder(bytes.NewReader(stdout))
@@ -80,6 +86,65 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 		}
 
 		log.Info("Done downloading dependencies")
+	}
+
+	return modDownloads, replace, nil
+}
+
+func ImportPkgs(directory string, numWorkers int) error {
+	modDownloads, _, err := common(directory)
+	if err != nil {
+		return err
+	}
+
+	executor := lib.NewParallellExecutor(numWorkers)
+	for _, dl := range modDownloads {
+		dl := dl
+		executor.Add(func() error {
+			log.WithFields(log.Fields{
+				"goPackagePath": dl.Path,
+			}).Info("Importing sources")
+
+			pathName := filepath.Base(dl.Path) + "_" + dl.Version
+
+			cmd := exec.Command(
+				"nix-instantiate",
+				"--eval",
+				"--expr",
+				fmt.Sprintf(`
+builtins.filterSource (name: type: baseNameOf name != ".DS_Store") (
+  builtins.path {
+    path = "%s";
+    name = "%s";
+  }
+)
+`, dl.Dir, pathName),
+			)
+			cmd.Stderr = os.Stderr
+
+			err = cmd.Start()
+			if err != nil {
+				fmt.Println(cmd)
+				return err
+			}
+
+			err = cmd.Wait()
+			if err != nil {
+				fmt.Println(cmd)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	return executor.Wait()
+}
+
+func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
+	modDownloads, replace, err := common(directory)
+	if err != nil {
+		return nil, err
 	}
 
 	executor := lib.NewParallellExecutor(numWorkers)
@@ -114,9 +179,7 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 			}).Info("Calculating NAR hash")
 
 			h := sha256.New()
-			err := nar.DumpPathFilter(h, dl.Dir, func(name string, nodeType nar.NodeType) bool {
-				return strings.ToLower(filepath.Base(name)) != ".ds_store"
-			})
+			err := nar.DumpPathFilter(h, dl.Dir, sourceFilter)
 			if err != nil {
 				return err
 			}

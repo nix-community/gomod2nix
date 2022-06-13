@@ -20,18 +20,33 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "gomod2nix",
 	Short: "Convert applications using Go modules -> Nix",
-	RunE: func(cmd *cobra.Command, args []string) error {
-
-		return generateInternal(flagDirectory, flagOutDir, flagMaxJobs)
+	Run: func(cmd *cobra.Command, args []string) {
+		err := generateInternal(flagDirectory, flagOutDir, flagMaxJobs)
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 
 var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Run gomod2nix.toml generator",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
+		err := generateInternal(flagDirectory, flagOutDir, flagMaxJobs)
+		if err != nil {
+			panic(err)
+		}
+	},
+}
 
-		return generateInternal(flagDirectory, flagOutDir, flagMaxJobs)
+var importCmd = &cobra.Command{
+	Use:   "import",
+	Short: "Import Go sources into the Nix store",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := generate.ImportPkgs(flagDirectory, flagMaxJobs)
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 
@@ -41,6 +56,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&flagMaxJobs, "jobs", 10, "Max number of concurrent jobs")
 
 	rootCmd.AddCommand(generateCmd)
+	rootCmd.AddCommand(importCmd)
 }
 
 func Execute() {
