@@ -111,7 +111,7 @@ let
         export GOSUMDB=off
         export GOPROXY=off
 
-      '' + lib.optionalString (lib.pathExists (pwd + "/tools./.go")) ''
+      '' + lib.optionalString (lib.pathExists (pwd + "/tools.go")) ''
         mkdir source
         cp ${pwd + "/go.mod"} source/go.mod
         cp ${pwd + "/go.sum"} source/go.sum
