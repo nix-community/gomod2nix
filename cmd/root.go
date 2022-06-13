@@ -22,7 +22,16 @@ var rootCmd = &cobra.Command{
 	Short: "Convert applications using Go modules -> Nix",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		return generateCmd(flagDirectory, flagOutDir, flagMaxJobs)
+		return generateInternal(flagDirectory, flagOutDir, flagMaxJobs)
+	},
+}
+
+var generateCmd = &cobra.Command{
+	Use:   "generate",
+	Short: "Run gomod2nix.toml generator",
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		return generateInternal(flagDirectory, flagOutDir, flagMaxJobs)
 	},
 }
 
@@ -30,6 +39,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&flagDirectory, "dir", "", "Go project directory")
 	rootCmd.PersistentFlags().StringVar(&flagOutDir, "outdir", "", "Output directory (defaults to project directory)")
 	rootCmd.PersistentFlags().IntVar(&flagMaxJobs, "jobs", 10, "Max number of concurrent jobs")
+
+	rootCmd.AddCommand(generateCmd)
 }
 
 func Execute() {
@@ -39,7 +50,7 @@ func Execute() {
 	}
 }
 
-func generateCmd(directory string, outDir string, maxJobs int) error {
+func generateInternal(directory string, outDir string, maxJobs int) error {
 	if outDir == "" {
 		outDir = directory
 	}
