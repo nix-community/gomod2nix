@@ -7,6 +7,7 @@ go mod download "$goPackagePath@$version"
 
 dir=$(go mod download --json "$goPackagePath@$version" | jq -r .Dir)
 
-cp -r $dir $out
+chmod -R +w $dir
+find $dir -iname ".ds_store" | xargs -r rm -rf
 
-find $out -iname ".ds_store" | xargs -r rm -r
+cp -r $dir $out
