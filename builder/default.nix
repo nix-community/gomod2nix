@@ -12,11 +12,16 @@
 }:
 let
 
-  inherit (builtins) substring;
+  inherit (builtins) substring toJSON hasAttr trace split readFile elemAt;
+  inherit (lib)
+    concatStringsSep replaceStrings removePrefix optionalString pathExists
+    optional concatMapStrings fetchers filterAttrs mapAttrs mapAttrsToList
+    warnIf optionalAttrs platforms
+    ;
 
   parseGoMod = import ./parser.nix;
 
-  removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
+  removeExpr = refs: ''remove-references-to ${concatMapStrings (ref: " -t ${ref}") refs}'';
 
   # Internal only build-time attributes
   internal =
@@ -56,7 +61,7 @@ let
       outputHashAlgo = null;
       outputHash = hash;
       SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
-      impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
+      impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
   mkVendorEnv =
@@ -70,9 +75,9 @@ let
     let
       localReplaceCommands =
         let
-          localReplaceAttrs = lib.filterAttrs (n: v: lib.hasAttr "path" v) goMod.replace;
+          localReplaceAttrs = filterAttrs (n: v: hasAttr "path" v) goMod.replace;
           commands = (
-            lib.mapAttrsToList
+            mapAttrsToList
               (name: value: (
                 ''
                   mkdir -p $(dirname vendor/${name})
@@ -83,7 +88,7 @@ let
         in
         if goMod != null then commands else [ ];
 
-      sources = lib.mapAttrs
+      sources = mapAttrs
         (goPackagePath: meta: fetchGoModule {
           goPackagePath = meta.replaced or goPackagePath;
           inherit (meta) version hash;
@@ -94,9 +99,9 @@ let
     runCommand "vendor-env"
       {
         nativeBuildInputs = [ go ];
-        json = builtins.toJSON (lib.filterAttrs (n: _: n != defaultPackage) modulesStruct.mod);
+        json = toJSON (filterAttrs (n: _: n != defaultPackage) modulesStruct.mod);
 
-        sources = builtins.toJSON (lib.filterAttrs (n: _: n != defaultPackage) sources);
+        sources = toJSON (filterAttrs (n: _: n != defaultPackage) sources);
 
         passthru = {
           inherit sources;
@@ -112,7 +117,7 @@ let
           export GOPATH="$TMPDIR/go"
 
           ${internal.symlink}
-          ${lib.concatStringsSep "\n" localReplaceCommands}
+          ${concatStringsSep "\n" localReplaceCommands}
 
           mv vendor $out
         ''
@@ -123,22 +128,22 @@ let
   (
     let
       goVersion = goMod.go;
-      goAttr = "go_" + (lib.replaceStrings [ "." ] [ "_" ] goVersion);
+      goAttr = "go_" + (replaceStrings [ "." ] [ "_" ] goVersion);
     in
     (
-      if builtins.hasAttr goAttr pkgs then pkgs.${goAttr}
-      else builtins.trace "go.mod specified Go version ${goVersion} but doesn't exist. Falling back to ${pkgs.go.version}." pkgs.go
+      if hasAttr goAttr pkgs then pkgs.${goAttr}
+      else trace "go.mod specified Go version ${goVersion} but doesn't exist. Falling back to ${pkgs.go.version}." pkgs.go
     )
   ));
 
   # Strip the rubbish that Go adds to versions, and fall back to a version based on the date if it's a placeholder value
   stripVersion = version:
     let
-      parts = lib.elemAt (builtins.split "(\\+|-)" (lib.removePrefix "v" version));
+      parts = elemAt (split "(\\+|-)" (removePrefix "v" version));
       v = parts 0;
       d = parts 2;
     in
-    if v != "0.0.0" then v else "unstable-" + (lib.concatStringsSep "-" [
+    if v != "0.0.0" then v else "unstable-" + (concatStringsSep "-" [
       (substring 0 4 d)
       (substring 4 2 d)
       (substring 6 2 d)
@@ -148,8 +153,8 @@ let
     { pwd
     }@attrs:
     let
-      goMod = parseGoMod (builtins.readFile "${builtins.toString pwd}/go.mod");
-      modulesStruct = builtins.fromTOML (builtins.readFile "${builtins.toString pwd}/gomod2nix.toml");
+      goMod = parseGoMod (readFile "${toString pwd}/go.mod");
+      modulesStruct = fromTOML (readFile "${toString pwd}/gomod2nix.toml");
 
       go = selectGo attrs goMod;
 
@@ -158,8 +163,8 @@ let
       };
 
     in
-    stdenv.mkDerivation (builtins.removeAttrs attrs [ "pwd" ] // {
-      name = "${builtins.baseNameOf goMod.module}-env";
+    stdenv.mkDerivation (removeAttrs attrs [ "pwd" ] // {
+      name = "${baseNameOf goMod.module}-env";
 
       dontUnpack = true;
       dontConfigure = true;
@@ -182,7 +187,7 @@ let
         export GOSUMDB=off
         export GOPROXY=off
 
-      '' + lib.optionalString (lib.pathExists (pwd + "/tools.go")) ''
+      '' + optionalString (pathExists (pwd + "/tools.go")) ''
         mkdir source
         cp ${pwd + "/go.mod"} source/go.mod
         cp ${pwd + "/go.sum"} source/go.sum
@@ -211,18 +216,18 @@ let
     , ...
     }@attrs:
     let
-      modulesStruct = builtins.fromTOML (builtins.readFile modules);
+      modulesStruct = fromTOML (readFile modules);
 
-      goModPath = "${builtins.toString pwd}/go.mod";
+      goModPath = "${toString pwd}/go.mod";
 
       goMod =
-        if pwd != null && lib.pathExists goModPath
-        then parseGoMod (builtins.readFile goModPath)
+        if pwd != null && pathExists goModPath
+        then parseGoMod (readFile goModPath)
         else null;
 
       go = selectGo attrs goMod;
 
-      removeReferences = [ ] ++ lib.optional (!allowGoReference) go;
+      removeReferences = [ ] ++ optional (!allowGoReference) go;
 
       defaultPackage = modulesStruct.goPackagePath or "";
 
@@ -231,15 +236,15 @@ let
       };
 
     in
-    lib.warnIf (buildFlags != "" || buildFlagsArray != "")
+    warnIf (buildFlags != "" || buildFlagsArray != "")
       "Use the `ldflags` and/or `tags` attributes instead of `buildFlags`/`buildFlagsArray`"
       stdenv.mkDerivation
-      (lib.optionalAttrs (defaultPackage != "")
+      (optionalAttrs (defaultPackage != "")
         {
           pname = attrs.pname or baseNameOf defaultPackage;
           version = stripVersion (modulesStruct.mod.${defaultPackage}).version;
           src = vendorEnv.passthru.sources.${defaultPackage};
-        } // lib.optionalAttrs (lib.hasAttr "subPackages" modulesStruct) {
+        } // optionalAttrs (hasAttr "subPackages" modulesStruct) {
         subPackages = modulesStruct.subPackages;
       } // attrs // {
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
@@ -285,7 +290,7 @@ let
             d="$2"
             . $TMPDIR/buildFlagsArray
             local OUT
-            if ! OUT="$(go $cmd $buildFlags "''${buildFlagsArray[@]}" ''${tags:+-tags=${lib.concatStringsSep "," tags}} ''${ldflags:+-ldflags="$ldflags"} -v -p $NIX_BUILD_CORES $d 2>&1)"; then
+            if ! OUT="$(go $cmd $buildFlags "''${buildFlagsArray[@]}" ''${tags:+-tags=${concatStringsSep "," tags}} ''${ldflags:+-ldflags="$ldflags"} -v -p $NIX_BUILD_CORES $d 2>&1)"; then
               if echo "$OUT" | grep -qE 'imports .*?: no Go files in'; then
                 echo "$OUT" >&2
                 return 1
@@ -327,7 +332,7 @@ let
             echo "Building subPackage $pkg"
             buildGoDir install "$pkg"
           done
-        '' + lib.optionalString (stdenv.hostPlatform != stdenv.buildPlatform) ''
+        '' + optionalString (stdenv.hostPlatform != stdenv.buildPlatform) ''
           # normalize cross-compiled builds w.r.t. native builds
           (
             dir=$GOPATH/bin/${go.GOOS}_${go.GOARCH}
@@ -369,11 +374,11 @@ let
 
         strictDeps = true;
 
-        disallowedReferences = lib.optional (!allowGoReference) go;
+        disallowedReferences = optional (!allowGoReference) go;
 
         passthru = { inherit go vendorEnv; } // passthru;
 
-        meta = { platforms = go.meta.platforms or lib.platforms.all; } // meta;
+        meta = { platforms = go.meta.platforms or platforms.all; } // meta;
       });
 
 in
