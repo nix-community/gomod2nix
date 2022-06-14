@@ -38,6 +38,10 @@ We need a better build abstraction that takes Go modules into account, while rem
 
 Yes. Once the API is considered stable.
 
+## Motivation
+
+The [announcement blog post](https://www.tweag.io/blog/2021-03-04-gomod2nix/) contains comparisons with other Go build systems for Nix and additional notes on the design choices made.
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE)
