@@ -182,8 +182,9 @@ let
     , passthru ? { }
     , tags ? [ ]
 
-    # needed for buildFlags warning
+    # needed for buildFlags{,Array} warning
     , buildFlags ? ""
+    , buildFlagsArray ? ""
 
     , ...
     }@attrs:
@@ -221,8 +222,9 @@ let
         inherit go modulesStruct localReplaceCommands defaultPackage;
       };
 
-      package = lib.warnIf (buildFlags != "")
-      "Use the `ldflags` and/or `tags` attributes instead of `buildFlags`"
+      package =
+        lib.warnIf (buildFlags != "" || buildFlagsArray != "")
+        "Use the `ldflags` and/or `tags` attributes instead of `buildFlags`/`buildFlagsArray`"
         stdenv.mkDerivation (lib.optionalAttrs (defaultPackage != "")
         {
           pname = attrs.pname or baseNameOf defaultPackage;
