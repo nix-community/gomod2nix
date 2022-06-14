@@ -266,7 +266,7 @@ let
             IFS=' ' read -r -a excludedArr <<<$excludedPackages
             printf -v excludedAlternates '%s\\|' "''${excludedArr[@]}"
             excludedAlternates=''${excludedAlternates%\\|} # drop final \| added by printf
-            exclude+='\\|'"$excludedAlternates"
+            exclude+='\|'"$excludedAlternates"
           fi
           exclude+='\)'
 
