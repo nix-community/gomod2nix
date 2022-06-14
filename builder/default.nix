@@ -136,7 +136,7 @@ let
       };
 
     in
-    stdenv.mkDerivation {
+    stdenv.mkDerivation (builtins.removeAttrs attrs [ "pwd" ] // {
       name = "${builtins.baseNameOf goMod.module}-env";
 
       dontUnpack = true;
@@ -170,7 +170,7 @@ let
 
         ${internal.install}
       '';
-    };
+    });
 
   buildGoApplication =
     { modules ? pwd + "/gomod2nix.toml"
