@@ -322,7 +322,7 @@ let
           runHook preCheck
 
           for pkg in $(getGoDirs test); do
-            buildGoDir test "$pkg"
+            buildGoDir test $checkFlags "$pkg"
           done
 
           runHook postCheck
