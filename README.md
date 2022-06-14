@@ -25,7 +25,7 @@ in pkgs.buildGoApplication {
 }
 ```
 
-For more in-depth usage check the [Getting Started](./docs/getting-started.md) docs.
+For more in-depth usage check the [Getting Started](./docs/getting-started.md) and the [Nix API reference](./docs/nix-reference.md) docs.
 
 ## FAQ
 
