@@ -180,6 +180,12 @@ let
     , allowGoReference ? false
     , meta ? { }
     , passthru ? { }
+    , tags ? [ ]
+
+      # needed for buildFlags{,Array} warning
+    , buildFlags ? ""
+    , buildFlagsArray ? ""
+
     , ...
     }@attrs:
     let
@@ -216,140 +222,151 @@ let
         inherit go modulesStruct localReplaceCommands defaultPackage;
       };
 
-      package = stdenv.mkDerivation (lib.optionalAttrs (defaultPackage != "")
-        {
-          pname = attrs.pname or baseNameOf defaultPackage;
-          version = stripVersion (modulesStruct.mod.${defaultPackage}).version;
-          src = vendorEnv.passthru.sources.${defaultPackage};
-        } // lib.optionalAttrs (lib.hasAttr "subPackages" modulesStruct) {
-        subPackages = modulesStruct.subPackages;
-      } // attrs // {
-        nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
+      package =
+        lib.warnIf (buildFlags != "" || buildFlagsArray != "")
+          "Use the `ldflags` and/or `tags` attributes instead of `buildFlags`/`buildFlagsArray`"
+          stdenv.mkDerivation
+          (lib.optionalAttrs (defaultPackage != "")
+            {
+              pname = attrs.pname or baseNameOf defaultPackage;
+              version = stripVersion (modulesStruct.mod.${defaultPackage}).version;
+              src = vendorEnv.passthru.sources.${defaultPackage};
+            } // lib.optionalAttrs (lib.hasAttr "subPackages" modulesStruct) {
+            subPackages = modulesStruct.subPackages;
+          } // attrs // {
+            nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
 
-        inherit (go) GOOS GOARCH;
+            inherit (go) GOOS GOARCH;
 
-        GO_NO_VENDOR_CHECKS = "1";
+            GO_NO_VENDOR_CHECKS = "1";
 
-        GO111MODULE = "on";
-        GOFLAGS = "-mod=vendor";
+            GO111MODULE = "on";
+            GOFLAGS = "-mod=vendor";
 
-        configurePhase = attrs.configurePhase or ''
-          runHook preConfigure
+            configurePhase = attrs.configurePhase or ''
+              runHook preConfigure
 
-          export GOCACHE=$TMPDIR/go-cache
-          export GOPATH="$TMPDIR/go"
-          export GOSUMDB=off
-          export GOPROXY=off
-          cd "$modRoot"
-          if [ -n "${vendorEnv}" ]; then
-              rm -rf vendor
-              ln -s ${vendorEnv} vendor
-          fi
-
-          runHook postConfigure
-        '';
-
-        buildPhase = attrs.buildPhase or ''
-          runHook preBuild
-
-          buildGoDir() {
-            local d; local cmd;
-            cmd="$1"
-            d="$2"
-            . $TMPDIR/buildFlagsArray
-            echo "$d" | grep -q "\(/_\|examples\|Godeps\|testdata\)" && return 0
-            [ -n "$excludedPackages" ] && echo "$d" | grep -q "$excludedPackages" && return 0
-            local OUT
-            if ! OUT="$(go $cmd $buildFlags "''${buildFlagsArray[@]}" -v -p $NIX_BUILD_CORES $d 2>&1)"; then
-              if echo "$OUT" | grep -qE 'imports .*?: no Go files in'; then
-                echo "$OUT" >&2
-                return 1
+              export GOCACHE=$TMPDIR/go-cache
+              export GOPATH="$TMPDIR/go"
+              export GOSUMDB=off
+              export GOPROXY=off
+              cd "$modRoot"
+              if [ -n "${vendorEnv}" ]; then
+                  rm -rf vendor
+                  ln -s ${vendorEnv} vendor
               fi
-              if ! echo "$OUT" | grep -qE '(no( buildable| non-test)?|build constraints exclude all) Go (source )?files'; then
-                echo "$OUT" >&2
-                return 1
+
+              runHook postConfigure
+            '';
+
+            buildPhase = attrs.buildPhase or ''
+              runHook preBuild
+
+              exclude='\(/_\|examples\|Godeps\|testdata'
+              if [[ -n "$excludedPackages" ]]; then
+                IFS=' ' read -r -a excludedArr <<<$excludedPackages
+                printf -v excludedAlternates '%s\\|' "''${excludedArr[@]}"
+                excludedAlternates=''${excludedAlternates%\\|} # drop final \| added by printf
+                exclude+='\|'"$excludedAlternates"
               fi
-            fi
-            if [ -n "$OUT" ]; then
-              echo "$OUT" >&2
-            fi
-            return 0
-          }
+              exclude+='\)'
 
-          getGoDirs() {
-            local type;
-            type="$1"
-            if [ -n "$subPackages" ]; then
-              echo "$subPackages" | sed "s,\(^\| \),\1./,g"
-            else
-              find . -type f -name \*$type.go -exec dirname {} \; | grep -v "/vendor/" | sort --unique
-            fi
-          }
+              buildGoDir() {
+                local d; local cmd;
+                cmd="$1"
+                d="$2"
+                . $TMPDIR/buildFlagsArray
+                local OUT
+                if ! OUT="$(go $cmd $buildFlags "''${buildFlagsArray[@]}" ''${tags:+-tags=${lib.concatStringsSep "," tags}} ''${ldflags:+-ldflags="$ldflags"} -v -p $NIX_BUILD_CORES $d 2>&1)"; then
+                  if echo "$OUT" | grep -qE 'imports .*?: no Go files in'; then
+                    echo "$OUT" >&2
+                    return 1
+                  fi
+                  if ! echo "$OUT" | grep -qE '(no( buildable| non-test)?|build constraints exclude all) Go (source )?files'; then
+                    echo "$OUT" >&2
+                    return 1
+                  fi
+                fi
+                if [ -n "$OUT" ]; then
+                  echo "$OUT" >&2
+                fi
+                return 0
+              }
 
-          if (( "''${NIX_DEBUG:-0}" >= 1 )); then
-            buildFlagsArray+=(-x)
-          fi
+              getGoDirs() {
+                local type;
+                type="$1"
+                if [ -n "$subPackages" ]; then
+                  echo "$subPackages" | sed "s,\(^\| \),\1./,g"
+                else
+                  find . -type f -name \*$type.go -exec dirname {} \; | grep -v "/vendor/" | sort --unique | grep -v "$exclude"
+                fi
+              }
 
-          if [ ''${#buildFlagsArray[@]} -ne 0 ]; then
-            declare -p buildFlagsArray > $TMPDIR/buildFlagsArray
-          else
-            touch $TMPDIR/buildFlagsArray
-          fi
-          if [ -z "$enableParallelBuilding" ]; then
-              export NIX_BUILD_CORES=1
-          fi
-          for pkg in $(getGoDirs ""); do
-            echo "Building subPackage $pkg"
-            buildGoDir install "$pkg"
-          done
-        '' + lib.optionalString (stdenv.hostPlatform != stdenv.buildPlatform) ''
-          # normalize cross-compiled builds w.r.t. native builds
-          (
-            dir=$GOPATH/bin/${go.GOOS}_${go.GOARCH}
-            if [[ -n "$(shopt -s nullglob; echo $dir/*)" ]]; then
-              mv $dir/* $dir/..
-            fi
-            if [[ -d $dir ]]; then
-              rmdir $dir
-            fi
-          )
-        '' + ''
-          runHook postBuild
-        '';
+              if (( "''${NIX_DEBUG:-0}" >= 1 )); then
+                buildFlagsArray+=(-x)
+              fi
 
-        doCheck = attrs.doCheck or true;
-        checkPhase = attrs.checkPhase or ''
-          runHook preCheck
+              if [ ''${#buildFlagsArray[@]} -ne 0 ]; then
+                declare -p buildFlagsArray > $TMPDIR/buildFlagsArray
+              else
+                touch $TMPDIR/buildFlagsArray
+              fi
+              if [ -z "$enableParallelBuilding" ]; then
+                  export NIX_BUILD_CORES=1
+              fi
+              for pkg in $(getGoDirs ""); do
+                echo "Building subPackage $pkg"
+                buildGoDir install "$pkg"
+              done
+            '' + lib.optionalString (stdenv.hostPlatform != stdenv.buildPlatform) ''
+              # normalize cross-compiled builds w.r.t. native builds
+              (
+                dir=$GOPATH/bin/${go.GOOS}_${go.GOARCH}
+                if [[ -n "$(shopt -s nullglob; echo $dir/*)" ]]; then
+                  mv $dir/* $dir/..
+                fi
+                if [[ -d $dir ]]; then
+                  rmdir $dir
+                fi
+              )
+            '' + ''
+              runHook postBuild
+            '';
 
-          for pkg in $(getGoDirs test); do
-            buildGoDir test "$pkg"
-          done
+            doCheck = attrs.doCheck or true;
+            checkPhase = attrs.checkPhase or ''
+              runHook preCheck
 
-          runHook postCheck
-        '';
+              for pkg in $(getGoDirs test); do
+                buildGoDir test $checkFlags "$pkg"
+              done
 
-        installPhase = attrs.installPhase or ''
-          runHook preInstall
+              runHook postCheck
+            '';
 
-          mkdir -p $out
-          dir="$GOPATH/bin"
-          [ -e "$dir" ] && cp -r $dir $out
+            installPhase = attrs.installPhase or ''
+              runHook preInstall
 
-          runHook postInstall
-        '';
+              mkdir -p $out
+              dir="$GOPATH/bin"
+              [ -e "$dir" ] && cp -r $dir $out
 
-        preFixup = (attrs.preFixup or "") + ''
-          find $out/{bin,libexec,lib} -type f 2>/dev/null | xargs -r ${removeExpr removeReferences} || true
-        '';
+              runHook postInstall
+            '';
 
-        strictDeps = true;
+            preFixup = (attrs.preFixup or "") + ''
+              find $out/{bin,libexec,lib} -type f 2>/dev/null | xargs -r ${removeExpr removeReferences} || true
+            '';
 
-        disallowedReferences = lib.optional (!allowGoReference) go;
+            strictDeps = true;
 
-        passthru = { inherit go vendorEnv; } // passthru;
+            disallowedReferences = lib.optional (!allowGoReference) go;
 
-        meta = { platforms = go.meta.platforms or lib.platforms.all; } // meta;
-      });
+            passthru = { inherit go vendorEnv; } // passthru;
+
+            meta = { platforms = go.meta.platforms or lib.platforms.all; } // meta;
+          });
 
     in
     package;
