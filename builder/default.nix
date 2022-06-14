@@ -181,6 +181,10 @@ let
     , meta ? { }
     , passthru ? { }
     , tags ? [ ]
+
+    # needed for buildFlags warning
+    , buildFlags ? ""
+
     , ...
     }@attrs:
     let
@@ -217,7 +221,9 @@ let
         inherit go modulesStruct localReplaceCommands defaultPackage;
       };
 
-      package = stdenv.mkDerivation (lib.optionalAttrs (defaultPackage != "")
+      package = lib.warnIf (buildFlags != "")
+      "Use the `ldflags` and/or `tags` attributes instead of `buildFlags`"
+        stdenv.mkDerivation (lib.optionalAttrs (defaultPackage != "")
         {
           pname = attrs.pname or baseNameOf defaultPackage;
           version = stripVersion (modulesStruct.mod.${defaultPackage}).version;
