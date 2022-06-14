@@ -25,6 +25,8 @@ in pkgs.buildGoApplication {
 }
 ```
 
+For more in-depth usage check the [Getting Started](./docs/getting-started.md) docs.
+
 ## FAQ
 
 ### Why not continue work on vgo2nix?
@@ -35,6 +37,10 @@ We need a better build abstraction that takes Go modules into account, while rem
 ### Will this be included in Nixpkgs
 
 Yes. Once the API is considered stable.
+
+## Motivation
+
+The [announcement blog post](https://www.tweag.io/blog/2021-03-04-gomod2nix/) contains comparisons with other Go build systems for Nix and additional notes on the design choices made.
 
 ## License
 

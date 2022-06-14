@@ -14,8 +14,8 @@ jobs:
     env:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
     steps:
-    - uses: cachix/install-nix-action@v12
-    - uses: actions/checkout@v1
+    - uses: cachix/install-nix-action@v17
+    - uses: actions/checkout@v3
     - name: Check format
       run: nix-shell --run 'nixpkgs-fmt --check .'
 
@@ -24,8 +24,8 @@ jobs:
     env:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
     steps:
-    - uses: cachix/install-nix-action@v12
-    - uses: actions/checkout@v1
+    - uses: cachix/install-nix-action@v17
+    - uses: actions/checkout@v3
     - name: Check format
       run: nix-shell --run 'golangci-lint run'
 
@@ -34,8 +34,8 @@ jobs:
     env:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
     steps:
-    - uses: cachix/install-nix-action@v12
-    - uses: actions/checkout@v1
+    - uses: cachix/install-nix-action@v17
+    - uses: actions/checkout@v3
     - name: "Build gomod2nix"
       run: nix-shell --run "go build"
     - name: Run gomod2nix
