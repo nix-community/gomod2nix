@@ -7,8 +7,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	generate "github.com/tweag/gomod2nix/generate"
-	schema "github.com/tweag/gomod2nix/schema"
+	generate "github.com/tweag/gomod2nix/internal/generate"
+	schema "github.com/tweag/gomod2nix/internal/schema"
 )
 
 const directoryDefault = "./"
