@@ -98,32 +98,6 @@ var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Run gomod2nix.toml generator",
 	Run:   generateFunc,
-
-	// func(cmd *cobra.Command, args []string) error {
-	// 	outDir := flagOutDir
-	// 	dir := flagDirectory
-
-	// 	if len(args) > 0 {
-	// 		tmpProj, err := generate.NewTempProject(args)
-	// 		if err != nil {
-	// 			panic(err)
-	// 		}
-	// 		defer tmpProj.Remove()
-
-	// 		dir = tmpProj.Dir
-	// 		outDir = "./tmp"
-	// 	}
-
-	// 	// dir := "/home/adisbladis/go/pkg/mod/github.com/kyleconroy/sqlc@v1.14.0"
-	// 	// fmt.Println(args)
-
-	// 	err := generateInternal(dir, outDir, flagMaxJobs)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	return nil
-	// },
 }
 
 var importCmd = &cobra.Command{
