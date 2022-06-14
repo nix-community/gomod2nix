@@ -16,37 +16,40 @@ type Package struct {
 	ReplacedPath  string `json:"replaced,omitempty"`
 }
 
-type Output struct {
-	SchemaVersion int                 `json:"schema"`
-	Mod           map[string]*Package `json:"mod"`
-}
+// type Output struct {
+// 	SchemaVersion int                 `json:"schema"`
+// 	Mod           map[string]*Package `json:"mod"`
+// }
 
 func main() {
 
-	var output Output
+	// var output Output
 	sources := make(map[string]string)
+	pkgs := make(map[string]*Package)
 
-	b, err := ioutil.ReadFile(os.Getenv("sourcesPath"))
-	if err != nil {
-		panic(err)
+	{
+		b, err := ioutil.ReadFile(os.Getenv("sourcesPath"))
+		if err != nil {
+			panic(err)
+		}
+
+		err = json.Unmarshal(b, &sources)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	err = json.Unmarshal(b, &sources)
-	if err != nil {
-		panic(err)
-	}
+	{
+		b, err := ioutil.ReadFile(os.Getenv("jsonPath"))
+		if err != nil {
+			panic(err)
+		}
 
-	b, err = ioutil.ReadFile(os.Getenv("jsonPath"))
-	if err != nil {
-		panic(err)
+		err = json.Unmarshal(b, &pkgs)
+		if err != nil {
+			panic(err)
+		}
 	}
-
-	err = json.Unmarshal(b, &output)
-	if err != nil {
-		panic(err)
-	}
-
-	pkgs := output.Mod
 
 	keys := make([]string, 0, len(pkgs))
 	for key := range pkgs {

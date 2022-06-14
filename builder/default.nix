@@ -12,6 +12,8 @@
 }:
 let
 
+  inherit (builtins) substring;
+
   parseGoMod = import ./parser.nix;
 
   removeExpr = refs: ''remove-references-to ${lib.concatMapStrings (ref: " -t ${ref}") refs}'';
@@ -57,36 +59,42 @@ let
       impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
-  mkVendorEnv = { go, modulesStruct, localReplaceCommands ? [ ] }: runCommand "vendor-env"
-    {
-      nativeBuildInputs = [ go ];
-      json = builtins.toJSON modulesStruct;
+  mkVendorEnv = { go, modulesStruct, localReplaceCommands ? [ ], defaultPackage ? "" }:
+    let
+      sources = lib.mapAttrs
+        (goPackagePath: meta: fetchGoModule {
+          goPackagePath = meta.replaced or goPackagePath;
+          inherit (meta) version hash;
+          inherit go;
+        })
+        modulesStruct.mod;
+    in
+    runCommand "vendor-env"
+      {
+        nativeBuildInputs = [ go ];
+        json = builtins.toJSON (lib.filterAttrs (n: _: n != defaultPackage) modulesStruct.mod);
 
-      sources = builtins.toJSON (
-        lib.mapAttrs
-          (goPackagePath: meta: fetchGoModule {
-            goPackagePath = meta.replaced or goPackagePath;
-            inherit (meta) version hash;
-            inherit go;
-          })
-          modulesStruct.mod
+        sources = builtins.toJSON (lib.filterAttrs (n: _: n != defaultPackage) sources);
+
+        passthru = {
+          inherit sources;
+        };
+
+        passAsFile = [ "json" "sources" ];
+      }
+      (
+        ''
+          mkdir vendor
+
+          export GOCACHE=$TMPDIR/go-cache
+          export GOPATH="$TMPDIR/go"
+
+          ${internal.symlink}
+          ${lib.concatStringsSep "\n" localReplaceCommands}
+
+          mv vendor $out
+        ''
       );
-
-      passAsFile = [ "json" "sources" ];
-    }
-    (
-      ''
-        mkdir vendor
-
-        export GOCACHE=$TMPDIR/go-cache
-        export GOPATH="$TMPDIR/go"
-
-        ${internal.symlink}
-        ${lib.concatStringsSep "\n" localReplaceCommands}
-
-        mv vendor $out
-      ''
-    );
 
   # Select Go attribute based on version specified in go.mod
   selectGo = attrs: goMod: attrs.go or (if goMod == null then pkgs.go else
@@ -101,6 +109,18 @@ let
     )
   ));
 
+  # Strip the rubbish that Go adds to versions, and fall back to a version based on the date if it's a placeholder value
+  stripVersion = version:
+    let
+      parts = lib.elemAt (builtins.split "(\\+|-)" (lib.removePrefix "v" version));
+      v = parts 0;
+      d = parts 2;
+    in
+    if v != "0.0.0" then v else "unstable-" + (lib.concatStringsSep "-" [
+      (substring 0 4 d)
+      (substring 4 2 d)
+      (substring 6 2 d)
+    ]);
 
   mkGoEnv =
     { pwd
@@ -165,9 +185,11 @@ let
     let
       modulesStruct = builtins.fromTOML (builtins.readFile modules);
 
+      goModPath = "${builtins.toString pwd}/go.mod";
+
       goMod =
-        if pwd != null
-        then parseGoMod (builtins.readFile "${builtins.toString pwd}/go.mod")
+        if pwd != null && lib.pathExists goModPath
+        then parseGoMod (builtins.readFile goModPath)
         else null;
       localReplaceCommands =
         let
@@ -182,28 +204,29 @@ let
               ))
               localReplaceAttrs);
         in
-        if pwd != null then commands else [ ];
+        if goMod != null then commands else [ ];
 
       go = selectGo attrs goMod;
 
       removeReferences = [ ] ++ lib.optional (!allowGoReference) go;
 
-      vendorEnv = mkVendorEnv {
-        inherit go modulesStruct localReplaceCommands;
-      };
-
       defaultPackage = modulesStruct.goPackagePath or "";
+
+      vendorEnv = mkVendorEnv {
+        inherit go modulesStruct localReplaceCommands defaultPackage;
+      };
 
       package = stdenv.mkDerivation (lib.optionalAttrs (defaultPackage != "")
         {
           pname = attrs.pname or baseNameOf defaultPackage;
-          version = lib.removePrefix "v" (modulesStruct.mod.${defaultPackage}).version;
-        } // attrs // {
+          version = stripVersion (modulesStruct.mod.${defaultPackage}).version;
+          src = vendorEnv.passthru.sources.${defaultPackage};
+        } // lib.optionalAttrs (lib.hasAttr "subPackages" modulesStruct) {
+        subPackages = modulesStruct.subPackages;
+      } // attrs // {
         nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
-
-        inherit src;
 
         GO_NO_VENDOR_CHECKS = "1";
 
@@ -312,12 +335,6 @@ let
           dir="$GOPATH/bin"
           [ -e "$dir" ] && cp -r $dir $out
 
-          ${lib.optionalString (lib.hasAttr "install" modulesStruct) ''
-            ${lib.concatStringsSep "\n" (map (x: "go install ${x}") (modulesStruct.install or [ ]))}
-            mkdir -p $out/bin
-            cp -a $GOPATH/bin/* $out/bin/
-          ''}
-
           runHook postInstall
         '';
 
@@ -329,7 +346,7 @@ let
 
         disallowedReferences = lib.optional (!allowGoReference) go;
 
-        passthru = passthru // { inherit go vendorEnv; };
+        passthru = { inherit go vendorEnv; } // passthru;
 
         meta = { platforms = go.meta.platforms or lib.platforms.all; } // meta;
       });

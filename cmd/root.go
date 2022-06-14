@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
@@ -69,14 +68,14 @@ func generateFunc(cmd *cobra.Command, args []string) {
 		}
 
 		var goPackagePath string
-		var install []string
+		var subPackages []string
 
 		if tmpProj != nil {
-			install = tmpProj.Install
+			subPackages = tmpProj.SubPackages
 			goPackagePath = tmpProj.GoPackagePath
 		}
 
-		output, err := schema.Marshal(pkgs, goPackagePath, install)
+		output, err := schema.Marshal(pkgs, goPackagePath, subPackages)
 		if err != nil {
 			panic(fmt.Errorf("error marshaling output: %v", err))
 		}
@@ -86,28 +85,6 @@ func generateFunc(cmd *cobra.Command, args []string) {
 			panic(fmt.Errorf("error writing file: %v", err))
 		}
 		log.Info(fmt.Sprintf("Wrote: %s", outFile))
-	}
-
-	// If we are dealing with a project packaged by passing packages on the command line, copy go.mod
-	if tmpProj != nil {
-		outMod := filepath.Join(outDir, "go.mod")
-
-		fin, err := os.Open(filepath.Join(tmpProj.Dir, "go.mod"))
-		if err != nil {
-			panic(fmt.Errorf("error opening go.mod: %v", err))
-		}
-
-		fout, err := os.Create(outMod)
-		if err != nil {
-			panic(fmt.Errorf("error creating go.mod: %v", err))
-		}
-
-		_, err = io.Copy(fout, fin)
-		if err != nil {
-			panic(fmt.Errorf("error writing go.mod: %v", err))
-		}
-
-		log.Info(fmt.Sprintf("Wrote: %s", outMod))
 	}
 }
 
