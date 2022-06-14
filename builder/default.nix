@@ -59,8 +59,30 @@ let
       impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
-  mkVendorEnv = { go, modulesStruct, localReplaceCommands ? [ ], defaultPackage ? "" }:
+  mkVendorEnv =
+    { go
+    , modulesStruct
+    , localReplaceCommands ? [ ]
+    , defaultPackage ? ""
+    , goMod
+    , pwd
+    }:
     let
+      localReplaceCommands =
+        let
+          localReplaceAttrs = lib.filterAttrs (n: v: lib.hasAttr "path" v) goMod.replace;
+          commands = (
+            lib.mapAttrsToList
+              (name: value: (
+                ''
+                  mkdir -p $(dirname vendor/${name})
+                  ln -s ${pwd + "/${value.path}"} vendor/${name}
+                ''
+              ))
+              localReplaceAttrs);
+        in
+        if goMod != null then commands else [ ];
+
       sources = lib.mapAttrs
         (goPackagePath: meta: fetchGoModule {
           goPackagePath = meta.replaced or goPackagePath;
@@ -132,7 +154,7 @@ let
       go = selectGo attrs goMod;
 
       vendorEnv = mkVendorEnv {
-        inherit go modulesStruct;
+        inherit go modulesStruct pwd goMod;
       };
 
     in
@@ -197,20 +219,6 @@ let
         if pwd != null && lib.pathExists goModPath
         then parseGoMod (builtins.readFile goModPath)
         else null;
-      localReplaceCommands =
-        let
-          localReplaceAttrs = lib.filterAttrs (n: v: lib.hasAttr "path" v) goMod.replace;
-          commands = (
-            lib.mapAttrsToList
-              (name: value: (
-                ''
-                  mkdir -p $(dirname vendor/${name})
-                  ln -s ${pwd + "/${value.path}"} vendor/${name}
-                ''
-              ))
-              localReplaceAttrs);
-        in
-        if goMod != null then commands else [ ];
 
       go = selectGo attrs goMod;
 
@@ -219,7 +227,7 @@ let
       defaultPackage = modulesStruct.goPackagePath or "";
 
       vendorEnv = mkVendorEnv {
-        inherit go modulesStruct localReplaceCommands defaultPackage;
+        inherit go modulesStruct defaultPackage goMod pwd;
       };
 
     in
