@@ -1,4 +1,4 @@
 final: prev: {
-  inherit (final.callPackage ./builder { }) buildGoApplication mkGoEnv;
-  gomod2nix = final.callPackage ./default.nix { };
+  inherit (final.darwin.apple_sdk_11_0.callPackage ./builder { }) buildGoApplication mkGoEnv;
+  gomod2nix = final.darwin.apple_sdk_11_0.callPackage ./default.nix { };
 }
