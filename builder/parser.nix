@@ -117,7 +117,7 @@ let
           (_: v:
             let
               m = match "=> ([^ ]+) (.+)" v;
-              m2 = match "=> (.*+)" v;
+              m2 = match "=> ([^ ]+)" v;
             in
             if m != null then {
               goPackagePath = elemAt m 0;
