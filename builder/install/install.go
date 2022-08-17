@@ -41,6 +41,8 @@ func main() {
 		}
 
 		cmd := exec.Command("go", "install", path)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 
 		fmt.Printf("Executing '%s'\n", cmd)
 
