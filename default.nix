@@ -3,7 +3,7 @@
 buildGoApplication {
   inherit go;
   pname = "gomod2nix";
-  version = "1.0.0-rc1";
+  version = "1.0.0";
   src = lib.cleanSourceWith {
     filter = name: type: builtins.foldl' (v: s: v && ! lib.hasSuffix s name) true [
       "tests"
