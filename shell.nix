@@ -12,10 +12,10 @@
 
 pkgs.mkShell {
   NIX_PATH = "nixpkgs=${builtins.toString pkgs.path}";
-  buildInputs = [
+  nativeBuildInputs = [
     pkgs.nixpkgs-fmt
-    pkgs.gomod2nix.go
-    pkgs.gomod2nix
     pkgs.golangci-lint
+    pkgs.gomod2nix
+    (pkgs.mkGoEnv { pwd = ./.; })
   ];
 }

@@ -170,7 +170,7 @@ let
       dontConfigure = true;
       dontInstall = true;
 
-      propagatedNativeBuildInputs = [ go ];
+      propagatedBuildInputs = [ go ];
 
       GO_NO_VENDOR_CHECKS = "1";
 
