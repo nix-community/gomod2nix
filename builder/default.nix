@@ -193,7 +193,7 @@ let
         cp ${pwd + "/go.sum"} source/go.sum
         cp ${pwd + "/tools.go"} source/tools.go
         cd source
-        ln -s ${vendorEnv} vendor
+        cp -r ${vendorEnv} vendor
 
         ${internal.install}
       '';
@@ -266,7 +266,7 @@ let
           cd "$modRoot"
           if [ -n "${vendorEnv}" ]; then
               rm -rf vendor
-              ln -s ${vendorEnv} vendor
+              cp -r ${vendorEnv} vendor
           fi
 
           runHook postConfigure
