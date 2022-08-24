@@ -172,6 +172,8 @@ let
       dontConfigure = true;
       dontInstall = true;
 
+      CGO_ENABLED = attrs.CGO_ENABLED or go.CGO_ENABLED;
+
       propagatedBuildInputs = [ go ];
 
       GO_NO_VENDOR_CHECKS = "1";
@@ -253,6 +255,7 @@ let
         inherit (go) GOOS GOARCH;
 
         GO_NO_VENDOR_CHECKS = "1";
+        CGO_ENABLED = attrs.CGO_ENABLED or go.CGO_ENABLED;
 
         GO111MODULE = "on";
         GOFLAGS = [ "-mod=vendor" ] ++ lib.optionals (!allowGoReference) [ "-trimpath" ];
