@@ -210,6 +210,7 @@ let
     , meta ? { }
     , passthru ? { }
     , tags ? [ ]
+    , ldflags ? [ ]
 
       # needed for buildFlags{,Array} warning
     , buildFlags ? ""
