@@ -28,10 +28,10 @@ buildGoApplication {
   };
 
   postInstall = lib.optionalString (stdenv.buildPlatform == stdenv.targetPlatform) ''
-    $out/bin/gomod2nix completion bash > gomod2nix.bash
-    $out/bin/gomod2nix completion fish > gomod2nix.fish
-    $out/bin/gomod2nix completion zsh > _gomod2nix
-    installShellCompletion gomod2nix.{bash,fish} _gomod2nix
+    installShellCompletion --cmd gomod2nix \
+      --bash <($out/bin/gomod2nix completion bash) \
+      --fish <($out/bin/gomod2nix completion fish) \
+      --zsh <($out/bin/gomod2nix completion zsh)
   '' + ''
     wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ go ]}
   '';
