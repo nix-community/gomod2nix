@@ -8,6 +8,9 @@
 , cacert
 , pkgs
 , pkgsBuildBuild
+, runtimeShell
+, writeScript
+, gomod2nix
 }:
 let
 
@@ -238,13 +241,15 @@ let
         inherit go modulesStruct defaultPackage goMod pwd;
       };
 
+      pname = attrs.pname or baseNameOf defaultPackage;
+
     in
     warnIf (buildFlags != "" || buildFlagsArray != "")
       "Use the `ldflags` and/or `tags` attributes instead of `buildFlags`/`buildFlagsArray`"
       stdenv.mkDerivation
       (optionalAttrs (defaultPackage != "")
         {
-          pname = attrs.pname or baseNameOf defaultPackage;
+          inherit pname;
           version = stripVersion (modulesStruct.mod.${defaultPackage}).version;
           src = vendorEnv.passthru.sources.${defaultPackage};
         } // optionalAttrs (hasAttr "subPackages" modulesStruct) {
@@ -393,7 +398,29 @@ let
 
         disallowedReferences = optional (!allowGoReference) go;
 
-        passthru = { inherit go vendorEnv; } // passthru;
+        passthru = {
+          inherit go vendorEnv;
+        } // optionalAttrs (hasAttr "goPackagePath" modulesStruct) {
+
+          updateScript =
+            let
+              generatorArgs =
+                if hasAttr "subPackages" modulesStruct
+                then
+                  concatStringsSep " "
+                    (
+                      map (subPackage: modulesStruct.goPackagePath + "/" + subPackage) modulesStruct.subPackages
+                    )
+                else modulesStruct.goPackagePath;
+
+            in
+            writeScript "${pname}-updater" ''
+              #!${runtimeShell}
+              ${optionalString (pwd != null) "cd ${toString pwd}"}
+              exec ${gomod2nix}/bin/gomod2nix generate ${generatorArgs}
+            '';
+
+        } // passthru;
 
         meta = { platforms = go.meta.platforms or platforms.all; } // meta;
       });
