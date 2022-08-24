@@ -1,6 +1,6 @@
 { lib }:
 (import ./generic.nix {
-  version = "1.2.0";
+  version = "1.3.0";
   src = lib.cleanSourceWith {
     filter = name: type: builtins.foldl' (v: s: v && ! lib.hasSuffix s name) true [
       "tests"
