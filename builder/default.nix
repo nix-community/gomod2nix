@@ -221,7 +221,7 @@ let
     , ...
     }@attrs:
     let
-      modulesStruct = fromTOML (readFile modules);
+      modulesStruct = if modules == null then { } else fromTOML (readFile modules);
 
       goModPath = "${toString pwd}/go.mod";
 
@@ -268,10 +268,13 @@ let
           export GOSUMDB=off
           export GOPROXY=off
           cd "$modRoot"
-          if [ -n "${vendorEnv}" ]; then
+
+          ${optionalString (modulesStruct != { }) ''
+            if [ -n "${vendorEnv}" ]; then
               rm -rf vendor
               cp -r ${vendorEnv} vendor
-          fi
+            fi
+          ''}
 
           runHook postConfigure
         '';
