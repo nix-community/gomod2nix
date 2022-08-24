@@ -16,14 +16,7 @@ type Package struct {
 	ReplacedPath  string `json:"replaced,omitempty"`
 }
 
-// type Output struct {
-// 	SchemaVersion int                 `json:"schema"`
-// 	Mod           map[string]*Package `json:"mod"`
-// }
-
 func main() {
-
-	// var output Output
 	sources := make(map[string]string)
 	pkgs := make(map[string]*Package)
 

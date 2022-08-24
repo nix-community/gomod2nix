@@ -4,7 +4,6 @@
 , buildEnv
 , lib
 , fetchgit
-, removeReferencesTo
 , jq
 , cacert
 , pkgs
@@ -56,11 +55,14 @@ let
       name = "${baseNameOf goPackagePath}_${version}";
       builder = ./fetch.sh;
       inherit goPackagePath version;
-      nativeBuildInputs = [ go jq ];
+      nativeBuildInputs = [
+        go
+        jq
+        cacert
+      ];
       outputHashMode = "recursive";
       outputHashAlgo = null;
       outputHash = hash;
-      SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
       impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
@@ -208,6 +210,7 @@ let
     , meta ? { }
     , passthru ? { }
     , tags ? [ ]
+    , ldflags ? [ ]
 
       # needed for buildFlags{,Array} warning
     , buildFlags ? ""
@@ -227,8 +230,6 @@ let
 
       go = selectGo attrs goMod;
 
-      removeReferences = [ ] ++ optional (!allowGoReference) go;
-
       defaultPackage = modulesStruct.goPackagePath or "";
 
       vendorEnv = mkVendorEnv {
@@ -247,14 +248,14 @@ let
         } // optionalAttrs (hasAttr "subPackages" modulesStruct) {
         subPackages = modulesStruct.subPackages;
       } // attrs // {
-        nativeBuildInputs = [ removeReferencesTo go ] ++ nativeBuildInputs;
+        nativeBuildInputs = [ go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
 
         GO_NO_VENDOR_CHECKS = "1";
 
         GO111MODULE = "on";
-        GOFLAGS = "-mod=vendor";
+        GOFLAGS = [ "-mod=vendor" ] ++ lib.optionals (!allowGoReference) [ "-trimpath" ];
 
         configurePhase = attrs.configurePhase or ''
           runHook preConfigure
@@ -361,6 +362,9 @@ let
         checkPhase = attrs.checkPhase or ''
           runHook preCheck
 
+          # We do not set trimpath for tests, in case they reference test assets
+          export GOFLAGS=''${GOFLAGS//-trimpath/}
+
           for pkg in $(getGoDirs test); do
             buildGoDir test "$pkg"
           done
@@ -376,10 +380,6 @@ let
           [ -e "$dir" ] && cp -r $dir $out
 
           runHook postInstall
-        '';
-
-        preFixup = (attrs.preFixup or "") + ''
-          find $out/{bin,libexec,lib} -type f 2>/dev/null | xargs -r ${removeExpr removeReferences} || true
         '';
 
         strictDeps = true;
