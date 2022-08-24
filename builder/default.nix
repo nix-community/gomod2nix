@@ -55,11 +55,14 @@ let
       name = "${baseNameOf goPackagePath}_${version}";
       builder = ./fetch.sh;
       inherit goPackagePath version;
-      nativeBuildInputs = [ go jq ];
+      nativeBuildInputs = [
+        go
+        jq
+        cacert
+      ];
       outputHashMode = "recursive";
       outputHashAlgo = null;
       outputHash = hash;
-      SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
       impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
