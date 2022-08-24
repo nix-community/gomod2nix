@@ -9,13 +9,11 @@
 , makeWrapper
 , installShellFiles
 , fetchFromGitHub
+, buildGoApplication ? (callPackage ./builder { }).buildGoApplication
+, mkGoEnv ? (callPackage ./builder { }).buildGoApplication
 }:
 
-let
-  builder = callPackage ./builder { };
-
-in
-builder.buildGoApplication {
+buildGoApplication {
   pname = "gomod2nix";
   inherit version modules src go;
 
@@ -25,7 +23,9 @@ builder.buildGoApplication {
 
   nativeBuildInputs = [ makeWrapper installShellFiles ];
 
-  passthru = builder;
+  passthru = {
+    inherit buildGoApplication mkGoEnv;
+  };
 
   postInstall = lib.optionalString (stdenv.buildPlatform == stdenv.targetPlatform) ''
     $out/bin/gomod2nix completion bash > gomod2nix.bash
