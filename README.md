@@ -27,20 +27,16 @@ in pkgs.buildGoApplication {
 
 For more in-depth usage check the [Getting Started](./docs/getting-started.md) and the [Nix API reference](./docs/nix-reference.md) docs.
 
-## FAQ
-
-### Why not continue work on vgo2nix?
-Vgo2nix was built on top of the old Nixpkgs build abstraction `buildGoPackage`, this abstraction was built pre-modules and suffered from some fundamental design issues with modules, such as only allowing a single version of a Go package path inside the same build closure, something that Go itself allows for.
-
-We need a better build abstraction that takes Go modules into account, while remaining [import from derivation](https://nixos.wiki/wiki/Import_From_Derivation)-free.
-
-### Will this be included in Nixpkgs
-
-Yes. Once the API is considered stable.
-
 ## Motivation
 
 The [announcement blog post](https://www.tweag.io/blog/2021-03-04-gomod2nix/) contains comparisons with other Go build systems for Nix and additional notes on the design choices made.
+
+## About the project
+The developmentent of Trustix has been sponsored by [Tweag I/O](https://tweag.io/) and funded by the [NLNet foundation](https://nlnet.nl/project/Trustix) and the European Commission’s [Next Generation Internet programme](https://www.ngi.eu/funded_solution/trustix-nix/) through the NGI Zero PET (privacy and trust enhancing technologies) fund.
+
+![NGI0 logo](./.assets/NGI0_tag.png)
+![NLNet banner](./.assets/nlnet-banner.png)
+![Tweag logo](./.assets/tweag.png)
 
 ## License
 
