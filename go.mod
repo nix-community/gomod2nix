@@ -1,4 +1,4 @@
-module github.com/tweag/gomod2nix
+module github.com/nix-community/gomod2nix
 
 go 1.17
 
