@@ -17,8 +17,8 @@ import (
 
 	"github.com/nix-community/go-nix/pkg/nar"
 	log "github.com/sirupsen/logrus"
-	"github.com/tweag/gomod2nix/internal/lib"
-	schema "github.com/tweag/gomod2nix/internal/schema"
+	"github.com/nix-community/gomod2nix/internal/lib"
+	schema "github.com/nix-community/gomod2nix/internal/schema"
 	"golang.org/x/mod/modfile"
 )
 
