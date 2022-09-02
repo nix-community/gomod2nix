@@ -3,7 +3,7 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
-  inputs.gomod2nix.url = "github:tweag/gomod2nix";
+  inputs.gomod2nix.url = "github:nix-community/gomod2nix";
 
   outputs = { self, nixpkgs, flake-utils, gomod2nix }:
     (flake-utils.lib.eachDefaultSystem
