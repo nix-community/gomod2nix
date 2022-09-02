@@ -50,7 +50,7 @@ let
     { hash
     , goPackagePath
     , version
-    , go ? pkgs.go
+    , go
     }:
     stdenvNoCC.mkDerivation {
       name = "${baseNameOf goPackagePath}_${version}";
