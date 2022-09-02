@@ -32,8 +32,7 @@ let
           nativeBuildInputs = [ pkgsBuildBuild.go ];
         } ''
         export HOME=$(mktemp -d)
-        cp ${src} src.go
-        go build -o $out src.go
+        go build -o $out ${src}
       '';
     in
     {
@@ -205,7 +204,7 @@ let
         cp ${pwd + "/go.sum"} source/go.sum
         cp ${pwd + "/tools.go"} source/tools.go
         cd source
-        cp -r ${vendorEnv} vendor
+        cp -rL ${vendorEnv} vendor
 
         ${internal.install}
       '';
@@ -282,7 +281,7 @@ let
           ${optionalString (modulesStruct != { }) ''
             if [ -n "${vendorEnv}" ]; then
               rm -rf vendor
-              cp -r ${vendorEnv} vendor
+              cp -rL ${vendorEnv} vendor
             fi
           ''}
 
