@@ -23,8 +23,6 @@ let
 
   parseGoMod = import ./parser.nix;
 
-  removeExpr = refs: ''remove-references-to ${concatMapStrings (ref: " -t ${ref}") refs}'';
-
   # Internal only build-time attributes
   internal =
     let
