@@ -7,7 +7,7 @@
 First initialize Niv:
 ``` bash
 $ niv init --latest
-$ niv add tweag/gomod2nix
+$ niv add nix-community/gomod2nix
 ```
 
 Create a `shell.nix` used for development:
