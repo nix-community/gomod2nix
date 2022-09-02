@@ -8,8 +8,7 @@
 , cacert
 , pkgs
 , pkgsBuildBuild
-, runtimeShell
-, writeScript
+, writeShellScript
 , gomod2nix
 }:
 let
@@ -404,7 +403,6 @@ let
 
         passthru = {
           inherit go vendorEnv;
-        } // optionalAttrs (hasAttr "goPackagePath" modulesStruct) {
 
           updateScript =
             let
@@ -415,13 +413,12 @@ let
                     (
                       map (subPackage: modulesStruct.goPackagePath + "/" + subPackage) modulesStruct.subPackages
                     )
-                else modulesStruct.goPackagePath;
-
+                else (modulesStruct.goPackagePath or "");
+              helper = gomod2nix.override { inherit go; };
             in
-            writeScript "${pname}-updater" ''
-              #!${runtimeShell}
+            writeShellScript "${attrs.pname or ""}-updater" ''
               ${optionalString (pwd != null) "cd ${toString pwd}"}
-              exec ${gomod2nix}/bin/gomod2nix generate ${generatorArgs}
+              exec ${helper}/bin/gomod2nix generate ${generatorArgs}
             '';
 
         } // passthru;
