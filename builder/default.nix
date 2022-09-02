@@ -126,20 +126,27 @@ let
         ''
       );
 
-  # Select Go attribute based on version specified in go.mod
+  # Return a Go attribute and error out if the Go version is older than was specified in go.mod.
   selectGo = attrs: goMod: attrs.go or (if goMod == null then pkgs.go else
   (
     let
       goVersion = goMod.go;
-      goAttr = "go_" + (replaceStrings [ "." ] [ "_" ] goVersion);
+      goAttrs = lib.reverseList (builtins.filter
+        (
+          attr: lib.hasPrefix "go_" attr && lib.versionAtLeast pkgs.${attr}.version goVersion
+        )
+        (lib.attrNames pkgs));
+      goAttr = elemAt goAttrs 0;
     in
     (
-      if hasAttr goAttr pkgs then pkgs.${goAttr}
-      else trace "go.mod specified Go version ${goVersion} but doesn't exist. Falling back to ${pkgs.go.version}." pkgs.go
+      if goAttrs != [ ]
+      then pkgs.${goAttr}
+      else throw "go.mod specified Go version ${goVersion}, but no compatible Go attribute could be found."
     )
   ));
 
-  # Strip the rubbish that Go adds to versions, and fall back to a version based on the date if it's a placeholder value
+  # Strip extra data that Go adds to versions, and fall back to a version based on the date if it's a placeholder value.
+  # This is data that Nix can't handle in the version attribute.
   stripVersion = version:
     let
       parts = elemAt (split "(\\+|-)" (removePrefix "v" version));
