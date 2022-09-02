@@ -1,17 +1,19 @@
 { stdenv
 , callPackage
-, go
 , lib
 , makeWrapper
 , installShellFiles
 , fetchFromGitHub
 , buildGoApplication
 , mkGoEnv
+, which
 }:
 
 buildGoApplication {
   pname = "gomod2nix";
   version = "dev";
+
+  pwd = ./.;
 
   modules = ./gomod2nix.toml;
 
@@ -24,13 +26,11 @@ buildGoApplication {
     src = lib.cleanSource ./.;
   };
 
-  inherit go;
-
   allowGoReference = true;
 
   subPackages = [ "." ];
 
-  nativeBuildInputs = [ makeWrapper installShellFiles ];
+  nativeBuildInputs = [ makeWrapper installShellFiles which ];
 
   passthru = {
     inherit buildGoApplication mkGoEnv;
@@ -42,7 +42,7 @@ buildGoApplication {
       --fish <($out/bin/gomod2nix completion fish) \
       --zsh <($out/bin/gomod2nix completion zsh)
   '' + ''
-    wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ go ]}
+    wrapProgram $out/bin/gomod2nix --prefix PATH : $(dirname $(which go))
   '';
 
   meta = {
