@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,9 +15,9 @@ import (
 	"sync"
 
 	"github.com/nix-community/go-nix/pkg/nar"
-	log "github.com/sirupsen/logrus"
 	"github.com/nix-community/gomod2nix/internal/lib"
 	schema "github.com/nix-community/gomod2nix/internal/schema"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
 )
 
@@ -45,7 +44,7 @@ func common(directory string) ([]*goModDownload, map[string]string, error) {
 	}).Info("Parsing go.mod")
 
 	// Read go.mod
-	data, err := ioutil.ReadFile(goModPath)
+	data, err := os.ReadFile(goModPath)
 	if err != nil {
 		return nil, nil, err
 	}
