@@ -139,7 +139,8 @@ let
     )
   ));
 
-  # Strip the rubbish that Go adds to versions, and fall back to a version based on the date if it's a placeholder value
+  # Strip extra data that Go adds to versions, and fall back to a version based on the date if it's a placeholder value.
+  # This is data that Nix can't handle in the version attribute.
   stripVersion = version:
     let
       parts = elemAt (split "(\\+|-)" (removePrefix "v" version));
