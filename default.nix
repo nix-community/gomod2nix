@@ -42,7 +42,7 @@ buildGoApplication {
       --fish <($out/bin/gomod2nix completion fish) \
       --zsh <($out/bin/gomod2nix completion zsh)
   '' + ''
-    wrapProgram $out/bin/gomod2nix --prefix PATH : $(dirname $(which go))
+    wrapProgram $out/bin/gomod2nix --suffix PATH : $(dirname $(which go))
   '';
 
   meta = {
