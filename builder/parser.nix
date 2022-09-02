@@ -24,9 +24,9 @@ let
   parseLines = lines: (foldl'
     (acc: l:
       let
-        m = match "([^ )]*) *(.*)" l;
-        directive = elemAt m 0;
-        rest = elemAt m 1;
+        m = match "([^ )]*) *(.*)" l; # Match the current line
+        directive = elemAt m 0; # The directive (replace, require & so on)
+        rest = elemAt m 1; # The rest of the current line
 
         # Maintain parser state (inside parens or not)
         inDirective =
@@ -38,25 +38,40 @@ let
       in
       {
         data = (acc.data // (
+          # If a we're in a directive and it's closing, no-op
           if directive == "" && rest == ")" then { }
+
+          # If a directive is opening create the directive attrset
           else if inDirective != null && rest == "(" && ! hasAttr inDirective acc.data then {
             ${inDirective} = { };
           }
+
+          # If we're closing any paren, no-op
           else if rest == "(" || rest == ")" then { }
+
+          # If we're in a directive that has rest data assign it to the directive in the output
           else if inDirective != null then {
             ${inDirective} = acc.data.${inDirective} // { ${directive} = rest; };
-          } else if directive == "replace" then
+          }
+
+          # Replace directive has unique structure and needs special casing
+          else if directive == "replace" then
             (
               let
+                # Split `foo => bar` into segments
                 segments = split " => " rest;
                 getSegment = elemAt segments;
               in
               assert length segments == 3; {
+                # Assert well formed
                 replace = acc.data.replace // {
+                  # Structure segments into attrset
                   ${getSegment 0} = "=> ${getSegment 2}";
                 };
               }
             )
+
+          # The default operation is to just assign the value
           else {
             ${directive} = rest;
           }
@@ -65,7 +80,9 @@ let
         inherit inDirective;
       })
     {
+      # Default foldl' state
       inDirective = null;
+      # The actual return data we're interested in (default empty structure)
       data = {
         require = { };
         replace = { };
@@ -75,6 +92,19 @@ let
     lines
   ).data;
 
+  # Normalise directives no matter what syntax produced them
+  # meaning that:
+  # replace github.com/nix-community/trustix/packages/go-lib => ../go-lib
+  #
+  # and:
+  # replace (
+  #     github.com/nix-community/trustix/packages/go-lib => ../go-lib
+  # )
+  #
+  # gets the same structural representation.
+  #
+  # Addtionally this will create directives that are entirely missing from go.mod
+  # as an empty attrset so it's output is more consistent.
   normaliseDirectives = data: (
     let
       normaliseString = s:
@@ -98,6 +128,7 @@ let
     }
   );
 
+  # Parse versions and dates from go.mod version string
   parseVersion = ver:
     let
       m = elemAt (match "([^-]+)-?([^-]*)-?([^-]*)" ver);
@@ -110,6 +141,7 @@ let
       rev = m 2;
     };
 
+  # Parse package paths & versions from replace directives
   parseReplace = data: (
     data // {
       replace =
