@@ -29,7 +29,7 @@
           };
         in
         {
-          packages.default = pkgs.callPackage (pkgs.callPackage ./default.nix { }) { };
+          packages.default = pkgs.callPackage ./. { };
           devShells.default = import ./shell.nix { inherit pkgs; };
         })
     );

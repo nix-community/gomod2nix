@@ -23,8 +23,6 @@ let
 
   parseGoMod = import ./parser.nix;
 
-  removeExpr = refs: ''remove-references-to ${concatMapStrings (ref: " -t ${ref}") refs}'';
-
   # Internal only build-time attributes
   internal =
     let
@@ -52,7 +50,7 @@ let
     { hash
     , goPackagePath
     , version
-    , go ? pkgs.go
+    , go
     }:
     stdenvNoCC.mkDerivation {
       name = "${baseNameOf goPackagePath}_${version}";
