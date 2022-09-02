@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,7 +20,7 @@ func main() {
 	pkgs := make(map[string]*Package)
 
 	{
-		b, err := ioutil.ReadFile(os.Getenv("sourcesPath"))
+		b, err := os.ReadFile(os.Getenv("sourcesPath"))
 		if err != nil {
 			panic(err)
 		}
@@ -33,7 +32,7 @@ func main() {
 	}
 
 	{
-		b, err := ioutil.ReadFile(os.Getenv("jsonPath"))
+		b, err := os.ReadFile(os.Getenv("jsonPath"))
 		if err != nil {
 			panic(err)
 		}
@@ -65,7 +64,7 @@ func main() {
 			}
 
 			if _, err := os.Stat(filepath.Join("vendor", path)); err == nil {
-				files, err := ioutil.ReadDir(src)
+				files, err := os.ReadDir(src)
 				if err != nil {
 					panic(err)
 				}
@@ -76,7 +75,7 @@ func main() {
 					if err := os.Symlink(innerSrc, dst); err != nil {
 						// assume it's an existing directory, try to link the directory content instead.
 						// TODO should we do this recursively
-						files, err := ioutil.ReadDir(innerSrc)
+						files, err := os.ReadDir(innerSrc)
 						if err != nil {
 							panic(err)
 						}
