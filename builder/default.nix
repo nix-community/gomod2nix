@@ -11,6 +11,7 @@
 , runtimeShell
 , writeScript
 , gomod2nix
+, rsync
 }:
 let
 
@@ -181,6 +182,8 @@ let
 
       CGO_ENABLED = attrs.CGO_ENABLED or go.CGO_ENABLED;
 
+      nativeBuildInputs = [ rsync ];
+
       propagatedBuildInputs = [ go ];
 
       GO_NO_VENDOR_CHECKS = "1";
@@ -204,7 +207,8 @@ let
         cp ${pwd + "/go.sum"} source/go.sum
         cp ${pwd + "/tools.go"} source/tools.go
         cd source
-        cp -rL ${vendorEnv} vendor
+
+        rsync -a -K --ignore-errors ${vendorEnv}/ vendor
 
         ${internal.install}
       '';
@@ -259,7 +263,7 @@ let
         } // optionalAttrs (hasAttr "subPackages" modulesStruct) {
         subPackages = modulesStruct.subPackages;
       } // attrs // {
-        nativeBuildInputs = [ go ] ++ nativeBuildInputs;
+        nativeBuildInputs = [ rsync go ] ++ nativeBuildInputs;
 
         inherit (go) GOOS GOARCH;
 
@@ -281,7 +285,7 @@ let
           ${optionalString (modulesStruct != { }) ''
             if [ -n "${vendorEnv}" ]; then
               rm -rf vendor
-              cp -rL ${vendorEnv} vendor
+              rsync -a -K --ignore-errors ${vendorEnv}/ vendor
             fi
           ''}
 
