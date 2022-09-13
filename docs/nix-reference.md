@@ -16,5 +16,6 @@ All other arguments are passed verbatim to `stdenv.mkDerivation`.
 ### mkGoEnv
 Arguments:
 - **pwd** Path to working directory.
+- **toolsGo** Path to `tools.go` (_default: `pwd + "/tools.go"`).
 
 All other arguments are passed verbatim to `stdenv.mkDerivation`.
