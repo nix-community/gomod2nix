@@ -162,10 +162,11 @@ let
   mkGoEnv =
     { pwd
     , toolsGo ? pwd + "/tools.go"
+    , modules ? pwd + "/gomod2nix.toml"
     }@attrs:
     let
       goMod = parseGoMod (readFile "${toString pwd}/go.mod");
-      modulesStruct = fromTOML (readFile "${toString pwd}/gomod2nix.toml");
+      modulesStruct = fromTOML (readFile modules);
 
       go = selectGo attrs goMod;
 
