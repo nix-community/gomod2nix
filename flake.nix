@@ -15,22 +15,19 @@
           description = "Gomod2nix packaged application";
         };
       };
-      defaultTemplate = self.templates.app;
+      templates.default = self.templates.app;
 
     } //
     (utils.lib.eachDefaultSystem
       (system:
         let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [
-              self.overlays.default
-            ];
-          };
+          pkgs = nixpkgs.legacyPackages.${system};
+          callPackage = pkgs.darwin.apple_sdk_11_0.callPackage or pkgs.callPackage;
         in
-        {
-          packages.default = pkgs.callPackage ./. { };
-          devShells.default = import ./shell.nix { inherit pkgs; };
+        rec {
+          packages.default = pkgs.callPackage ./. { inherit (lib) buildGoApplication mkGoEnv; };
+          devShells.default = import ./shell.nix { inherit pkgs; gomod2nix = packages.default; inherit (lib) mkGoEnv; };
+          lib = { inherit (callPackage ./builder { gomod2nix = packages.default; }) buildGoApplication mkGoEnv; };
         })
     );
 }
