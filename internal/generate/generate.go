@@ -107,8 +107,9 @@ func ImportPkgs(directory string, numWorkers int) error {
 			pathName := filepath.Base(dl.Path) + "_" + dl.Version
 
 			cmd := exec.Command(
-				"nix-instantiate",
-				"--eval",
+				"nix",
+				"eval",
+				"--impure",
 				"--expr",
 				fmt.Sprintf(`
 builtins.filterSource (name: type: baseNameOf name != ".DS_Store") (
