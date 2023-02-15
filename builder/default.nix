@@ -6,7 +6,6 @@
 , fetchgit
 , jq
 , cacert
-, pkgs
 , pkgsBuildBuild
 , buildPackages
 , runtimeShell
@@ -431,7 +430,7 @@ let
 
         } // passthru;
 
-        meta = { platforms = go.meta.platforms or platforms.all; } // meta;
+        inherit meta;
       });
 
 in
