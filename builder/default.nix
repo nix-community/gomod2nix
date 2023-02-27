@@ -161,10 +161,12 @@ let
 
   mkGoEnv =
     { pwd
+    , toolsGo ? pwd + "/tools.go"
+    , modules ? pwd + "/gomod2nix.toml"
     }@attrs:
     let
       goMod = parseGoMod (readFile "${toString pwd}/go.mod");
-      modulesStruct = fromTOML (readFile "${toString pwd}/gomod2nix.toml");
+      modulesStruct = fromTOML (readFile modules);
 
       go = selectGo attrs goMod;
 
@@ -201,11 +203,11 @@ let
         export GOSUMDB=off
         export GOPROXY=off
 
-      '' + optionalString (pathExists (pwd + "/tools.go")) ''
+      '' + optionalString (pathExists toolsGo) ''
         mkdir source
         cp ${pwd + "/go.mod"} source/go.mod
         cp ${pwd + "/go.sum"} source/go.sum
-        cp ${pwd + "/tools.go"} source/tools.go
+        cp ${toolsGo} source/tools.go
         cd source
 
         rsync -a -K --ignore-errors ${vendorEnv}/ vendor
