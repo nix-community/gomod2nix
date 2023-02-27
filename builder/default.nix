@@ -6,8 +6,8 @@
 , fetchgit
 , jq
 , cacert
-, pkgs
 , pkgsBuildBuild
+, buildPackages
 , runtimeShell
 , writeScript
 , gomod2nix
@@ -127,20 +127,20 @@ let
       );
 
   # Return a Go attribute and error out if the Go version is older than was specified in go.mod.
-  selectGo = attrs: goMod: attrs.go or (if goMod == null then pkgs.go else
+  selectGo = attrs: goMod: attrs.go or (if goMod == null then buildPackages.go else
   (
     let
       goVersion = goMod.go;
       goAttrs = lib.reverseList (builtins.filter
         (
-          attr: lib.hasPrefix "go_" attr && lib.versionAtLeast pkgs.${attr}.version goVersion
+          attr: lib.hasPrefix "go_" attr && lib.versionAtLeast buildPackages.${attr}.version goVersion
         )
-        (lib.attrNames pkgs));
+        (lib.attrNames buildPackages));
       goAttr = elemAt goAttrs 0;
     in
     (
       if goAttrs != [ ]
-      then pkgs.${goAttr}
+      then buildPackages.${goAttr}
       else throw "go.mod specified Go version ${goVersion}, but no compatible Go attribute could be found."
     )
   ));
@@ -430,7 +430,7 @@ let
 
         } // passthru;
 
-        meta = { platforms = go.meta.platforms or platforms.all; } // meta;
+        inherit meta;
       });
 
 in
