@@ -5,6 +5,6 @@ let
   callPackage = final.darwin.apple_sdk_11_0.callPackage or final.callPackage;
 in
 {
-  inherit (callPackage ./builder { }) buildGoApplication mkGoEnv;
+  inherit (callPackage ./builder { }) buildGoApplication mkGoEnv mkVendorEnv;
   gomod2nix = callPackage ./default.nix { };
 }
