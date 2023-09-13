@@ -2,10 +2,9 @@
   description = "Convert go.mod/go.sum to Nix packages";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/master";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
 
-  inputs.utils.url = "github:numtide/flake-utils";
-
-  outputs = { self, nixpkgs, utils }:
+  outputs = { self, nixpkgs, flake-utils }:
     {
       overlays.default = import ./overlay.nix;
 
@@ -18,7 +17,7 @@
       defaultTemplate = self.templates.app;
 
     } //
-    (utils.lib.eachDefaultSystem
+    (flake-utils.lib.eachDefaultSystem
       (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
