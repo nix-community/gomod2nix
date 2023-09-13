@@ -21,16 +21,30 @@
     (utils.lib.eachDefaultSystem
       (system:
         let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [
-              self.overlays.default
-            ];
+          pkgs = nixpkgs.legacyPackages.${system};
+
+          # The newer Darwin SDK does not exist in current (nixos-22.05) stable
+          # branches, so just fallback to the default callPackage.
+          callPackage = pkgs.darwin.apple_sdk_11_0.callPackage or pkgs.callPackage;
+
+          inherit (callPackage ./builder {
+            inherit gomod2nix;
+          }) mkGoEnv buildGoApplication;
+          gomod2nix = callPackage ./default.nix {
+            inherit mkGoEnv buildGoApplication;
           };
         in
         {
-          packages.default = pkgs.callPackage ./. { };
-          devShells.default = import ./shell.nix { inherit pkgs; };
+          packages.default = gomod2nix;
+          legacyPackages = {
+            # we cannot put them in packages because they are builder functions
+            inherit mkGoEnv buildGoApplication;
+            # just have this here for convenience
+            inherit gomod2nix;
+          };
+          devShells.default = callPackage ./shell.nix {
+            inherit mkGoEnv gomod2nix;
+          };
         })
     );
 }

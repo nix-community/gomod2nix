@@ -9,14 +9,16 @@
       ];
     }
   )
+, mkGoEnv ? pkgs.mkGoEnv
+, gomod2nix ? pkgs.gomod2nix
 }:
 
 let
-  goEnv = pkgs.mkGoEnv { pwd = ./.; };
+  goEnv = mkGoEnv { pwd = ./.; };
 in
 pkgs.mkShell {
   packages = [
     goEnv
-    pkgs.gomod2nix
+    gomod2nix
   ];
 }

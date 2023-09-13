@@ -9,15 +9,15 @@
     (flake-utils.lib.eachDefaultSystem
       (system:
         let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ gomod2nix.overlays.default ];
-          };
-
+          pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          packages.default = pkgs.callPackage ./. { };
-          devShells.default = import ./shell.nix { inherit pkgs; };
+          packages.default = pkgs.callPackage ./. {
+             inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+          };
+          devShells.default = pkgs.callPackage ./shell.nix {
+            inherit (gomod2nix.legacyPackages.${system}) buildGoApplication mkGoEnv gomod2nix;
+          };
         })
     );
 }

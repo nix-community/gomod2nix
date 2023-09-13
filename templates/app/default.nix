@@ -9,9 +9,10 @@
       ];
     }
   )
+, buildGoApplication ? pkgs.buildGoApplication
 }:
 
-pkgs.buildGoApplication {
+buildGoApplication {
   pname = "myapp";
   version = "0.1";
   pwd = ./.;
