@@ -8,6 +8,8 @@
       ];
     }
   )
+, gomod2nix ? pkgs.gomod2nix
+, mkGoEnv ? pkgs.mkGoEnv
 }:
 
 pkgs.mkShell {
@@ -15,7 +17,7 @@ pkgs.mkShell {
   nativeBuildInputs = [
     pkgs.nixpkgs-fmt
     pkgs.golangci-lint
-    pkgs.gomod2nix
-    (pkgs.mkGoEnv { pwd = ./.; })
+    gomod2nix
+    (mkGoEnv { pwd = ./.; })
   ];
 }

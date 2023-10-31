@@ -63,7 +63,7 @@ pkgs.buildGoApplication {
 
 The quickest way to get started if using Nix Flakes is to use the Flake template:
 ``` bash
-$ nix flake init -t github:tweag/gomod2nix#app
+$ nix flake init -t github:nix-community/gomod2nix#app
 ```
 
 ## Basic usage
