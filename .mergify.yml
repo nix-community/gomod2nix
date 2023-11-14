@@ -1,0 +1,23 @@
+queue_rules:
+  - name: default
+    merge_conditions:
+      - check-success=builds (cli-args, ubuntu-latest)
+      - check-success=builds (ethermint, ubuntu-latest)
+      - check-success=builds (mkgoenv, ubuntu-latest)
+      - check-success=builds (vendored-modules, ubuntu-latest)
+      - check-success=golangci-lint
+      - check-success=gomod2nix_toml
+      - check-success=list-jobs
+      - check-success=nixpkgs-fmt
+defaults:
+  actions:
+    queue:
+      allow_merging_configuration_change: true
+      method: rebase
+pull_request_rules:
+  - name: merge using the merge queue
+    conditions:
+      - base=master
+      - label~=merge-queue|dependencies
+    actions:
+      queue: {}
