@@ -22,7 +22,7 @@
             inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
           };
           devShells.default = callPackage ./shell.nix {
-            inherit (gomod2nix.legacyPackages.${system}) buildGoApplication mkGoEnv gomod2nix;
+            inherit (gomod2nix.legacyPackages.${system}) mkGoEnv gomod2nix;
           };
         })
     );
