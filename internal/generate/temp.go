@@ -13,7 +13,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/mod/module"
-	"golang.org/x/tools/go/vcs"
+	"golang.org/x/tools/go/vcs" // nolint:staticcheck
 )
 
 type TempProject struct {
