@@ -243,7 +243,7 @@ let
         then parseGoMod (readFile goModPath)
         else null;
 
-      go = selectGo attrs goMod;
+      go = builtins.trace (pkgsBuildBuild.go) (builtins.trace (selectGo attrs goMod) (selectGo attrs goMod));
 
       defaultPackage = modulesStruct.goPackagePath or "";
 
