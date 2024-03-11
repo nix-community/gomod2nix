@@ -91,19 +91,8 @@ func populateVendorPath(vendorPath string, src string) {
 		innerSrc := filepath.Join(src, f.Name())
 		dst := filepath.Join(vendorPath, f.Name())
 		if err := os.Symlink(innerSrc, dst); err != nil {
-			// assume it's an existing directory, try to link the directory content instead.
-			// TODO should we do this recursively?
-			files, err := os.ReadDir(innerSrc)
-			if err != nil {
-				panic(err)
-			}
-			for _, f := range files {
-				srcFile := filepath.Join(innerSrc, f.Name())
-				dstFile := filepath.Join(dst, f.Name())
-				if err := os.Symlink(srcFile, dstFile); err != nil {
-					fmt.Println("ignoring symlink error", srcFile, dstFile)
-				}
-			}
+			fmt.Println("symlink error, trying", innerSrc, err)
+			populateVendorPath(dst, innerSrc);
 		}
 	}
 }
