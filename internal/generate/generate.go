@@ -111,12 +111,11 @@ func ImportPkgs(directory string, numWorkers int) error {
 				"--eval",
 				"--expr",
 				fmt.Sprintf(`
-builtins.filterSource (name: type: baseNameOf name != ".DS_Store") (
-  builtins.path {
-    path = "%s";
-    name = "%s";
-  }
-)
+builtins.path {
+  path = "%s";
+  name = "%s";
+  filter = (name: type: baseNameOf name != ".DS_Store");
+}
 `, dl.Dir, pathName),
 			)
 			cmd.Stderr = os.Stderr
