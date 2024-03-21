@@ -4,8 +4,8 @@ import (
 	"sync"
 )
 
-// ParallellExecutor - Execute callback functions in parallell
-type ParallellExecutor struct {
+// ParallelExecutor - Execute callback functions in parallel
+type ParallelExecutor struct {
 	errChan chan error
 	wg      *sync.WaitGroup
 	mux     *sync.Mutex
@@ -16,8 +16,8 @@ type ParallellExecutor struct {
 	done bool
 }
 
-func NewParallellExecutor(maxWorkers int) *ParallellExecutor {
-	return &ParallellExecutor{
+func NewParallelExecutor(maxWorkers int) *ParallelExecutor {
+	return &ParallelExecutor{
 		errChan: make(chan error),
 		mux:     new(sync.Mutex),
 		wg:      new(sync.WaitGroup),
@@ -28,12 +28,11 @@ func NewParallellExecutor(maxWorkers int) *ParallellExecutor {
 	}
 }
 
-func (e *ParallellExecutor) Add(fn func() error) {
+func (e *ParallelExecutor) Add(fn func() error) {
 	e.wg.Add(1)
 
-	e.guard <- struct{}{} // Block until a worker is available
-
 	go func() {
+		e.guard <- struct{}{} // Block until a worker is available
 		defer e.wg.Done()
 		defer func() {
 			<-e.guard
@@ -46,7 +45,7 @@ func (e *ParallellExecutor) Add(fn func() error) {
 	}()
 }
 
-func (e *ParallellExecutor) Wait() error {
+func (e *ParallelExecutor) Wait() error {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
