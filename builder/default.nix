@@ -84,7 +84,8 @@ let
               (name: value: (
                 ''
                   mkdir -p $(dirname vendor/${name})
-                  ln -s ${pwd + "/${value.path}"} vendor/${name}
+                  # sometimes the symlink already exists, so we ignore the error
+                  ln -s ${pwd + "/${value.path}"} vendor/${name} || true
                 ''
               ))
               localReplaceAttrs);
