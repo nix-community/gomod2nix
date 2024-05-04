@@ -84,7 +84,7 @@ let
               (name: value: (
                 ''
                   mkdir -p $(dirname vendor/${name})
-                  # sometimes the symlink already exists, so we ignore the error
+                  # it could fail for overlapped modules, see: https://github.com/nix-community/gomod2nix/pull/156
                   ln -s ${pwd + "/${value.path}"} vendor/${name} || true
                 ''
               ))
