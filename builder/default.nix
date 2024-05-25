@@ -227,10 +227,6 @@ let
     , tags ? [ ]
     , ldflags ? [ ]
 
-      # needed for buildFlags{,Array} warning
-    , buildFlags ? ""
-    , buildFlagsArray ? ""
-
     , ...
     }@attrs:
     let
@@ -254,8 +250,6 @@ let
       pname = attrs.pname or baseNameOf defaultPackage;
 
     in
-    warnIf (buildFlags != "" || buildFlagsArray != "")
-      "Use the `ldflags` and/or `tags` attributes instead of `buildFlags`/`buildFlagsArray`"
       stdenv.mkDerivation
       (optionalAttrs (defaultPackage != "")
         {
