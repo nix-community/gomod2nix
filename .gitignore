@@ -2,3 +2,4 @@
 result*
 /tests/*/gomod2nix.toml
 /tests/*/go.mod
+.direnv/
