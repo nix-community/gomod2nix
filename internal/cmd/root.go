@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	generate "github.com/nix-community/gomod2nix/internal/generate"
 	schema "github.com/nix-community/gomod2nix/internal/schema"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 const directoryDefault = "./"
@@ -62,7 +62,7 @@ func generateFunc(cmd *cobra.Command, args []string) {
 	{
 		goMod2NixPath := filepath.Join(outDir, "gomod2nix.toml")
 		outFile := goMod2NixPath
-		pkgs, err := generate.GeneratePkgs(directory, goMod2NixPath, maxJobs)
+		generated, err := generate.GeneratePkgs(directory, goMod2NixPath, maxJobs)
 		if err != nil {
 			panic(fmt.Errorf("error generating pkgs: %v", err))
 		}
@@ -75,7 +75,7 @@ func generateFunc(cmd *cobra.Command, args []string) {
 			goPackagePath = tmpProj.GoPackagePath
 		}
 
-		output, err := schema.Marshal(pkgs, goPackagePath, subPackages)
+		output, err := schema.Marshal(generated, goPackagePath, subPackages)
 		if err != nil {
 			panic(fmt.Errorf("error marshaling output: %v", err))
 		}
