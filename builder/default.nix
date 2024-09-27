@@ -163,6 +163,7 @@ let
     { pwd
     , toolsGo ? pwd + "/tools.go"
     , modules ? pwd + "/gomod2nix.toml"
+    , ...
     }@attrs:
     let
       goMod = parseGoMod (readFile "${toString pwd}/go.mod");
