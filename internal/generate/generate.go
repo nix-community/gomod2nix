@@ -96,7 +96,7 @@ func ImportPkgs(directory string, numWorkers int) error {
 		return err
 	}
 
-	executor := lib.NewParallellExecutor(numWorkers)
+	executor := lib.NewParallelExecutor(numWorkers)
 	for _, dl := range modDownloads {
 		dl := dl
 		executor.Add(func() error {
@@ -146,7 +146,7 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 		return nil, err
 	}
 
-	executor := lib.NewParallellExecutor(numWorkers)
+	executor := lib.NewParallelExecutor(numWorkers)
 	var mux sync.Mutex
 
 	cache := schema.ReadCache(goMod2NixPath)
