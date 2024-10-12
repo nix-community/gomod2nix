@@ -2,11 +2,12 @@ package types
 
 import (
 	"bytes"
-	"github.com/BurntSushi/toml"
 	"os"
+
+	"github.com/BurntSushi/toml"
 )
 
-const SchemaVersion = 3
+const SchemaVersion = 4
 
 type Package struct {
 	GoPackagePath string `toml:"-"`
@@ -18,6 +19,7 @@ type Package struct {
 type Output struct {
 	SchemaVersion int                 `toml:"schema"`
 	Mod           map[string]*Package `toml:"mod"`
+	VendorModules string              `toml:"vendorModulesTxt"`
 
 	// Packages with passed import paths trigger `go install` based on this list
 	SubPackages []string `toml:"subPackages,omitempty"`
@@ -26,15 +28,21 @@ type Output struct {
 	GoPackagePath string `toml:"goPackagePath,omitempty"`
 }
 
-func Marshal(pkgs []*Package, goPackagePath string, subPackages []string) ([]byte, error) {
+type GeneratePkgsResult struct {
+	Packages   []*Package
+	ModulesTxt string
+}
+
+func Marshal(generated *GeneratePkgsResult, goPackagePath string, subPackages []string) ([]byte, error) {
 	out := &Output{
 		SchemaVersion: SchemaVersion,
 		Mod:           make(map[string]*Package),
 		SubPackages:   subPackages,
 		GoPackagePath: goPackagePath,
+		VendorModules: generated.ModulesTxt,
 	}
 
-	for _, pkg := range pkgs {
+	for _, pkg := range generated.Packages {
 		out.Mod[pkg.GoPackagePath] = pkg
 	}
 
