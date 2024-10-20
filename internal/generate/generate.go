@@ -140,7 +140,7 @@ builtins.filterSource (name: type: baseNameOf name != ".DS_Store") (
 	return executor.Wait()
 }
 
-func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
+func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) (*schema.GeneratePkgsResult, error) {
 	modDownloads, replace, err := common(directory)
 	if err != nil {
 		return nil, err
@@ -208,10 +208,44 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 		return nil, err
 	}
 
+	// Dependencies is downloaded, run `go mod vendor` to obtain `vendor/modules.txt` without reverse engineering
+	tmpVendorEnv := filepath.Join(directory, "vendor-gomod2nix")
+	err = os.RemoveAll(tmpVendorEnv)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = os.RemoveAll(tmpVendorEnv)
+	}()
+
+	var modulesTxt string
+	{
+		log.Info("Obtaining modules.txt")
+		cmd := exec.Command(
+			"go", "mod", "vendor", "-o", tmpVendorEnv,
+		)
+		cmd.Dir = directory
+		err = cmd.Run()
+		if err != nil {
+			return nil, err
+		}
+		modulesTxtBytes, err := os.ReadFile(filepath.Join(tmpVendorEnv, "modules.txt"))
+		if err != nil {
+			return nil, err
+		}
+		if len(modulesTxtBytes) == 0 {
+			return nil, fmt.Errorf("modules.txt has no content")
+		}
+		modulesTxt = string(modulesTxtBytes)
+	}
+
 	sort.Slice(packages, func(i, j int) bool {
 		return packages[i].GoPackagePath < packages[j].GoPackagePath
 	})
 
-	return packages, nil
+	return &schema.GeneratePkgsResult{
+		Packages:   packages,
+		ModulesTxt: string(modulesTxt),
+	}, nil
 
 }
