@@ -251,7 +251,7 @@ let
       pname = attrs.pname or baseNameOf defaultPackage;
 
     in
-      stdenv.mkDerivation
+    stdenv.mkDerivation
       (optionalAttrs (defaultPackage != "")
         {
           inherit pname;

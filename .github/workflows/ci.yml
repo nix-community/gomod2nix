@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: cachix/install-nix-action@v30
     - uses: actions/checkout@v4
-    - name: Check format
+    - name: Run golangci-lint
       run: nix-shell --run 'golangci-lint run'
 
   gomod2nix_toml:
