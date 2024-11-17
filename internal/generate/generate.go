@@ -208,28 +208,29 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) (*sche
 		return nil, err
 	}
 
-	// Dependencies is downloaded, run `go mod vendor` to obtain `vendor/modules.txt` without reverse engineering
-	tmpVendorEnv := filepath.Join(directory, "vendor-gomod2nix")
-	err = os.RemoveAll(tmpVendorEnv)
+	// Dependencies are downloaded, run `go mod vendor` to obtain `vendor/modules.txt` without reverse engineering
+	const tmpVendorEnvRelative = "vendor-gomod2nix"
+	tmpVendorEnvAbsolute := filepath.Join(directory, tmpVendorEnvRelative)
+	err = os.RemoveAll(tmpVendorEnvAbsolute)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		_ = os.RemoveAll(tmpVendorEnv)
+		_ = os.RemoveAll(tmpVendorEnvAbsolute)
 	}()
 
 	var modulesTxt string
 	{
 		log.Info("Obtaining modules.txt")
 		cmd := exec.Command(
-			"go", "mod", "vendor", "-o", tmpVendorEnv,
+			"go", "mod", "vendor", "-o", tmpVendorEnvRelative,
 		)
 		cmd.Dir = directory
 		err = cmd.Run()
 		if err != nil {
 			return nil, err
 		}
-		modulesTxtBytes, err := os.ReadFile(filepath.Join(tmpVendorEnv, "modules.txt"))
+		modulesTxtBytes, err := os.ReadFile(filepath.Join(tmpVendorEnvAbsolute, "modules.txt"))
 		if err != nil {
 			return nil, err
 		}
