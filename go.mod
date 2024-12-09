@@ -1,6 +1,8 @@
 module github.com/nix-community/gomod2nix
 
-go 1.17
+go 1.22.0
+
+toolchain go1.23.3
 
 require (
 	github.com/BurntSushi/toml v1.4.0
