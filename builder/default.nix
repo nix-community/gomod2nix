@@ -133,7 +133,10 @@ let
       goVersion = goMod.go;
       goAttrs = lib.reverseList (builtins.filter
         (
-          attr: lib.hasPrefix "go_" attr && lib.versionAtLeast buildPackages.${attr}.version goVersion
+          attr:
+          lib.hasPrefix "go_" attr &&
+          (let try = builtins.tryEval buildPackages.${attr}; in try.success && try.value ? version) &&
+          lib.versionAtLeast buildPackages.${attr}.version goVersion
         )
         (lib.attrNames buildPackages));
       goAttr = elemAt goAttrs 0;
