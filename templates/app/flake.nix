@@ -19,9 +19,6 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # The current default sdk for macOS fails to compile go projects, so we use a newer one for now.
-        # This has no effect on other platforms.
-        callPackage = pkgs.darwin.apple_sdk_11_0.callPackage or pkgs.callPackage;
         # Simple test check added to nix flake check
         go-test = pkgs.stdenvNoCC.mkDerivation {
           name = "go-test";
@@ -39,6 +36,7 @@
             mkdir "$out"
           '';
         };
+
         # Simple lint check added to nix flake check
         go-lint = pkgs.stdenvNoCC.mkDerivation {
           name = "go-lint";
@@ -57,15 +55,16 @@
             mkdir "$out"
           '';
         };
+
       in
       {
         checks = {
           inherit go-test go-lint;
         };
-        packages.default = callPackage ./. {
+        packages.default = pkgs.callPackage ./. {
           inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
         };
-        devShells.default = callPackage ./shell.nix {
+        devShells.default = pkgs.callPackage ./shell.nix {
           inherit (gomod2nix.legacyPackages.${system}) mkGoEnv gomod2nix;
         };
       }

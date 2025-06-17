@@ -4,7 +4,12 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/master";
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
     {
       overlays.default = import ./overlay.nix;
 
@@ -32,12 +37,15 @@
 
           # The current default sdk for macOS fails to compile go projects, so we use a newer one for now.
           # This has no effect on other platforms.
-          callPackage = pkgs.darwin.apple_sdk_11_0.callPackage or pkgs.callPackage;
 
-          inherit (callPackage ./builder {
-            inherit gomod2nix;
-          }) mkGoEnv buildGoApplication;
-          gomod2nix = callPackage ./default.nix {
+          inherit
+            (pkgs.callPackage ./builder {
+              inherit gomod2nix;
+            })
+            mkGoEnv
+            buildGoApplication
+            ;
+          gomod2nix = pkgs.callPackage ./default.nix {
             inherit mkGoEnv buildGoApplication;
           };
         in
@@ -49,7 +57,7 @@
             # just have this here for convenience
             inherit gomod2nix;
           };
-          devShells.default = callPackage ./shell.nix {
+          devShells.default = pkgs.callPackage ./shell.nix {
             inherit mkGoEnv gomod2nix;
           };
         }
