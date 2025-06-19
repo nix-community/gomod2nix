@@ -51,7 +51,7 @@ func NewTempProject(packages []string) (*TempProject, error) {
 		p := repoRoot.Root + versionSuffix
 
 		if goPackagePath != "" && p != goPackagePath {
-			return nil, fmt.Errorf("Mixed origin packages are not allowed")
+			return nil, fmt.Errorf("mixed origin packages are not allowed")
 		}
 
 		goPackagePath = p
@@ -104,9 +104,13 @@ func NewTempProject(packages []string) (*TempProject, error) {
 
 		f, err := os.Create(filepath.Join(dir, "tools.go"))
 		if err != nil {
-			return nil, fmt.Errorf("Error creating tools.go: %v", err)
+			return nil, fmt.Errorf("error creating tools.go: %v", err)
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Warn("Failed to close tools.go file: ", err)
+			}
+		}()
 
 		fset := token.NewFileSet()
 		err = printer.Fprint(f, fset, astFile)

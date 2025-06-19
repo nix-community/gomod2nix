@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 )
 
@@ -55,12 +56,7 @@ func runProcess(prefix string, env []string, command string, args ...string) err
 }
 
 func contains(haystack []string, needle string) bool {
-	for _, s := range haystack {
-		if s == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 func runTest(rootDir string, testDir string) error {
@@ -130,7 +126,7 @@ func runTests(rootDir string, testDirs []string) error {
 			defer wg.Done()
 			err := runTest(rootDir, testDir)
 			if err != nil {
-				cmdErrChan <- fmt.Errorf("Test for '%s' failed: %w", testDir, err)
+				cmdErrChan <- fmt.Errorf("test for '%s' failed: %w", testDir, err)
 			}
 		}()
 	}
@@ -148,7 +144,6 @@ func runTests(rootDir string, testDirs []string) error {
 }
 
 func main() {
-
 	var rootDir string
 	{
 		_, file, _, ok := runtime.Caller(0)
@@ -201,7 +196,6 @@ func main() {
 		return
 
 	default:
-		panic(fmt.Errorf("Unhandled action: %s", flag.Arg(0)))
+		panic(fmt.Errorf("unhandled action: %s", flag.Arg(0)))
 	}
-
 }

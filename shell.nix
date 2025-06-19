@@ -1,5 +1,4 @@
-{
-  pkgs ? (
+{ pkgs ? (
     let
       inherit (builtins) fetchTree fromJSON readFile;
     in
@@ -8,9 +7,10 @@
         (import ./overlay.nix)
       ];
     }
-  ),
-  gomod2nix ? pkgs.gomod2nix,
-  mkGoEnv ? pkgs.mkGoEnv,
+  )
+, gomod2nix ? pkgs.gomod2nix
+, mkGoEnv ? pkgs.mkGoEnv
+,
 }:
 
 pkgs.mkShell {
