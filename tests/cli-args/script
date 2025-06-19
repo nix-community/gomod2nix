@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "${0%/*}"
-exec $GOMOD2NIX generate  "golang.org/x/tools/cmd/stringer@v0.1.11"
+exec $GOMOD2NIX generate "golang.org/x/tools/cmd/stringer@v0.34.0"
