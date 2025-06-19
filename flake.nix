@@ -35,9 +35,6 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
 
-          # The current default sdk for macOS fails to compile go projects, so we use a newer one for now.
-          # This has no effect on other platforms.
-
           inherit
             (pkgs.callPackage ./builder {
               inherit gomod2nix;
