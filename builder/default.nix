@@ -4,6 +4,7 @@
 , buildEnv
 , lib
 , fetchgit
+, git
 , jq
 , cacert
 , pkgsBuildBuild
@@ -58,6 +59,7 @@ let
       inherit goPackagePath version;
       nativeBuildInputs = [
         go
+        git
         jq
         cacert
       ];
