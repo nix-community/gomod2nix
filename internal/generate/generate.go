@@ -72,9 +72,9 @@ func common(directory string) ([]*goModDownload, map[string]string, error) {
 		stdout, err := cmd.Output()
 		if err != nil {
 			if exiterr, ok := err.(*exec.ExitError); ok {
-				return nil, nil, fmt.Errorf("Failed to run 'go mod download --json: %s\n%s", exiterr, exiterr.Stderr)
+				return nil, nil, fmt.Errorf("failed to run 'go mod download --json: %s\n%s", exiterr, exiterr.Stderr)
 			} else {
-				return nil, nil, fmt.Errorf("Failed to run 'go mod download --json': %s", err)
+				return nil, nil, fmt.Errorf("failed to run 'go mod download --json': %s", err)
 			}
 		}
 
@@ -217,5 +217,4 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 	})
 
 	return packages, nil
-
 }

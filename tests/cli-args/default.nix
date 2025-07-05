@@ -6,7 +6,7 @@ let
     pwd = ./.;
   };
 in
-assert drv.version == "0.1.11";
+assert drv.version == "0.34.0";
 runCommand "cli-args-stringer-assert" { } ''
   if ! test -f ${drv}/bin/stringer; then
     echo "stringer command not found in env!"

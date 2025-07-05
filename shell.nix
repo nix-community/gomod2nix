@@ -10,6 +10,7 @@
   )
 , gomod2nix ? pkgs.gomod2nix
 , mkGoEnv ? pkgs.mkGoEnv
+,
 }:
 
 pkgs.mkShell {
