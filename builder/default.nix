@@ -16,7 +16,7 @@
 }:
 let
 
-  inherit (builtins) substring toJSON hasAttr trace split readFile elemAt;
+  inherit (builtins) substring toJSON hasAttr trace split readFile elemAt getEnv;
   inherit (lib)
     concatStringsSep replaceStrings removePrefix optionalString pathExists
     optional concatMapStrings fetchers filterAttrs mapAttrs mapAttrsToList
@@ -75,7 +75,7 @@ let
     , localReplaceCommands ? [ ]
     , defaultPackage ? ""
     , goMod
-    , pwd
+    , pwd ? (getEnv "PWD")
     }:
     let
       localReplaceCommands =
@@ -165,7 +165,7 @@ let
     ]);
 
   mkGoEnv =
-    { pwd
+    { pwd ? (getEnv "PWD")
     , toolsGo ? pwd + "/tools.go"
     , modules ? pwd + "/gomod2nix.toml"
     , ...
@@ -223,9 +223,9 @@ let
     });
 
   buildGoApplication =
-    { modules ? pwd + "/gomod2nix.toml"
+    { modules ? null
     , src ? pwd
-    , pwd ? null
+    , pwd ? (getEnv "PWD")
     , nativeBuildInputs ? [ ]
     , allowGoReference ? false
     , meta ? { }
@@ -236,7 +236,8 @@ let
     , ...
     }@attrs:
     let
-      modulesStruct = if modules == null then { } else fromTOML (readFile modules);
+      modulesStruct =
+        if modules == null then { } else fromTOML (readFile (pwd + "/gomod2nix.toml"));
 
       goModPath = "${toString pwd}/go.mod";
 
