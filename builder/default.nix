@@ -282,7 +282,7 @@ let
           export GOPATH="$TMPDIR/go"
           export GOSUMDB=off
           export GOPROXY=off
-          cd "$modRoot"
+          cd "''${modRoot:-.}"
 
           ${optionalString (modulesStruct != { }) ''
             if [ -n "${vendorEnv}" ]; then
