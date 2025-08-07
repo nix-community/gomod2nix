@@ -34,7 +34,8 @@ let
           nativeBuildInputs = [ pkgsBuildBuild.go ];
         } ''
         export HOME=$(mktemp -d)
-        go build -o $out ${src}
+        go build -o "$HOME/bin" ${src}
+        mv "$HOME/bin" "$out"
       '';
     in
     {
