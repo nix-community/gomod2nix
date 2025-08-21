@@ -144,6 +144,7 @@ func NewTempProject(packages []string) (*TempProject, error) {
 				"dir": dir,
 			}).Info("Getting dependencies")
 
+			// -d is deprecated. TODO review and fix
 			args := []string{"get", "-d"}
 			args = append(args, packages...)
 
