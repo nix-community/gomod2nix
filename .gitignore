@@ -3,3 +3,4 @@ result*
 /tests/*/gomod2nix.toml
 /tests/*/go.mod
 .idea
+.direnv
