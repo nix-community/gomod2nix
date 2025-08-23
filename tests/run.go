@@ -4,63 +4,55 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 )
 
 func runProcess(prefix string, env []string, command string, args ...string) error {
-	fmt.Printf("%s: Executing %s %s\n", prefix, command, args)
-
+	fmt.Printf("%s: Executing %s %v\n", prefix, command, args)
 	cmd := exec.Command(command, args...)
-
 	if env != nil {
 		cmd.Env = env
 	}
-
-	stdoutReader, err := cmd.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
-
-	stderrReader, err := cmd.StderrPipe()
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
 
-	done := make(chan struct{})
-
+	wg := sync.WaitGroup{}
+	wg.Add(2)
 	go func() {
-		reader := io.MultiReader(stdoutReader, stderrReader)
-		scanner := bufio.NewScanner(reader)
+		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
-			line := scanner.Bytes()
-			fmt.Printf("%s: %s\n", prefix, line)
+			fmt.Printf("%s: %s\n", prefix, scanner.Text())
 		}
-		done <- struct{}{}
+		wg.Done()
 	}()
-
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-
-	<-done
-
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			fmt.Printf("%s: %s\n", prefix, scanner.Text())
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 	return cmd.Wait()
 }
 
 func contains(haystack []string, needle string) bool {
-	for _, s := range haystack {
-		if s == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 func runTest(rootDir string, testDir string) error {
@@ -85,7 +77,7 @@ func runTest(rootDir string, testDir string) error {
 	}
 
 	buildExpr := fmt.Sprintf("with (import <nixpkgs> { overlays = [ (import %s/../overlay.nix) ]; }); callPackage %s {}", rootDir, testDir)
-	err := runProcess(prefix, nil, "nix-build", "--no-out-link", "--expr", buildExpr)
+	err := runProcess(prefix, nil, "nix-build", "-v", "--no-out-link", "--expr", buildExpr)
 	if err != nil {
 		return err
 	}
@@ -123,7 +115,6 @@ func runTests(rootDir string, testDirs []string) error {
 	var wg sync.WaitGroup
 	cmdErrChan := make(chan error)
 	for _, testDir := range testDirs {
-		testDir := testDir
 		fmt.Printf("Running test for: '%s'\n", testDir)
 		wg.Add(1)
 		go func() {
