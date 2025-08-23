@@ -8,19 +8,17 @@
   inputs.gomod2nix.inputs.flake-utils.follows = "flake-utils";
 
   outputs =
-    { self
-    , nixpkgs
-    , flake-utils
-    , gomod2nix
-    ,
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      gomod2nix,
     }:
     (flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # The current default sdk for macOS fails to compile go projects, so we use a newer one for now.
-        # This has no effect on other platforms.
         callPackage = pkgs.callPackage;
         # Simple test check added to nix flake check
         go-test = pkgs.stdenvNoCC.mkDerivation {

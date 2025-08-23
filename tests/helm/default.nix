@@ -1,4 +1,9 @@
-{ stdenv, buildGoApplication, fetchFromGitHub, installShellFiles }:
+{
+  stdenv,
+  buildGoApplication,
+  fetchFromGitHub,
+  installShellFiles,
+}:
 
 buildGoApplication rec {
   pname = "helm";
