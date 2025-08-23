@@ -130,7 +130,7 @@ func runTests(rootDir string, testDirs []string) error {
 			defer wg.Done()
 			err := runTest(rootDir, testDir)
 			if err != nil {
-				cmdErrChan <- fmt.Errorf("Test for '%s' failed: %w", testDir, err)
+				cmdErrChan <- fmt.Errorf("test for '%s' failed: %w", testDir, err)
 			}
 		}()
 	}
@@ -148,7 +148,6 @@ func runTests(rootDir string, testDirs []string) error {
 }
 
 func main() {
-
 	var rootDir string
 	{
 		_, file, _, ok := runtime.Caller(0)
@@ -201,7 +200,6 @@ func main() {
 		return
 
 	default:
-		panic(fmt.Errorf("Unhandled action: %s", flag.Arg(0)))
+		panic(fmt.Errorf("unhandled action: %s", flag.Arg(0)))
 	}
-
 }
