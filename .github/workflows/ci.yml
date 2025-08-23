@@ -57,7 +57,7 @@ jobs:
       - id: set-matrix
         run: |
           set -euo pipefail
-          matrix="$(go run tests/run.go list | jq --raw-input --slurp -rcM '{attr: split("\n")[:-1], os: ["ubuntu-latest"]}')"
+          matrix="$(nix-shell --run 'go run tests/run.go list' | jq --raw-input --slurp -rcM '{attr: split("\n")[:-1], os: ["ubuntu-latest"]}')"
           echo "::set-output name=matrix::$matrix"
 
   builds:
