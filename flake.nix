@@ -5,10 +5,10 @@
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
   outputs =
-    { self
-    , nixpkgs
-    , flake-utils
-    ,
+    {
+      self,
+      nixpkgs,
+      flake-utils,
     }:
     {
       overlays.default = import ./overlay.nix;
@@ -18,9 +18,8 @@
           path = ./templates/app;
           description = "Gomod2nix packaged application";
         };
+        default = self.templates.app;
       };
-      templates.default = self.templates.app;
-
     }
     // (flake-utils.lib.eachSystem
       [
@@ -35,8 +34,6 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
 
-          # The current default sdk for macOS fails to compile go projects, so we use a newer one for now.
-          # This has no effect on other platforms.
           callPackage = pkgs.callPackage;
 
           inherit

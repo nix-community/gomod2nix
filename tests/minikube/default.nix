@@ -1,12 +1,13 @@
-{ stdenv
-, buildGoApplication
-, fetchFromGitHub
-, go-bindata
-, installShellFiles
-, pkg-config
-, which
-, libvirt
-, darwin
+{
+  stdenv,
+  buildGoApplication,
+  fetchFromGitHub,
+  go-bindata,
+  installShellFiles,
+  pkg-config,
+  which,
+  libvirt,
+  darwin,
 }:
 
 buildGoApplication rec {
@@ -24,9 +25,20 @@ buildGoApplication rec {
     sha256 = "1n1jhsa0lrfpqvl7m5il37l3f22ffgg4zv8g42xq24cgna951a1z";
   };
 
-  nativeBuildInputs = [ go-bindata installShellFiles pkg-config which ];
+  nativeBuildInputs = [
+    go-bindata
+    installShellFiles
+    pkg-config
+    which
+  ];
 
-  buildInputs = if stdenv.isDarwin then [ darwin.apple_sdk.frameworks.vmnet ] else if stdenv.isLinux then [ libvirt ] else null;
+  buildInputs =
+    if stdenv.isDarwin then
+      [ darwin.apple_sdk.frameworks.vmnet ]
+    else if stdenv.isLinux then
+      [ libvirt ]
+    else
+      null;
 
   buildPhase = ''
     make COMMIT=${src.rev}

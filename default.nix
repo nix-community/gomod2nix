@@ -1,12 +1,11 @@
-{ stdenv
-, callPackage
-, go
-, lib
-, makeWrapper
-, installShellFiles
-, fetchFromGitHub
-, buildGoApplication
-, mkGoEnv
+{
+  stdenv,
+  go,
+  lib,
+  makeWrapper,
+  installShellFiles,
+  buildGoApplication,
+  mkGoEnv,
 }:
 
 buildGoApplication {
@@ -16,11 +15,13 @@ buildGoApplication {
   modules = ./gomod2nix.toml;
 
   src = lib.cleanSourceWith {
-    filter = name: type: builtins.foldl' (v: s: v && ! lib.hasSuffix s name) true [
-      "tests"
-      "builder"
-      "templates"
-    ];
+    filter =
+      name: type:
+      builtins.foldl' (v: s: v && !lib.hasSuffix s name) true [
+        "tests"
+        "builder"
+        "templates"
+      ];
     src = lib.cleanSource ./.;
   };
 
@@ -30,20 +31,25 @@ buildGoApplication {
 
   subPackages = [ "." ];
 
-  nativeBuildInputs = [ makeWrapper installShellFiles ];
+  nativeBuildInputs = [
+    makeWrapper
+    installShellFiles
+  ];
 
   passthru = {
     inherit buildGoApplication mkGoEnv;
   };
 
-  postInstall = lib.optionalString (stdenv.buildPlatform == stdenv.targetPlatform) ''
-    installShellCompletion --cmd gomod2nix \
-      --bash <($out/bin/gomod2nix completion bash) \
-      --fish <($out/bin/gomod2nix completion fish) \
-      --zsh <($out/bin/gomod2nix completion zsh)
-  '' + ''
-    wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ go ]}
-  '';
+  postInstall =
+    lib.optionalString (stdenv.buildPlatform == stdenv.targetPlatform) ''
+      installShellCompletion --cmd gomod2nix \
+        --bash <($out/bin/gomod2nix completion bash) \
+        --fish <($out/bin/gomod2nix completion fish) \
+        --zsh <($out/bin/gomod2nix completion zsh)
+    ''
+    + ''
+      wrapProgram $out/bin/gomod2nix --prefix PATH : ${lib.makeBinPath [ go ]}
+    '';
 
   meta = {
     description = "Convert applications using Go modules -> Nix";

@@ -1,4 +1,8 @@
-{ runCommand, buildGoApplication, fetchFromGitHub }:
+{
+  runCommand,
+  buildGoApplication,
+  fetchFromGitHub,
+}:
 
 let
   version = "0.23.1";

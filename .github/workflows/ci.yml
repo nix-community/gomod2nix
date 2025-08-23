@@ -3,10 +3,10 @@ name: CI
 on:
   pull_request:
     paths-ignore:
-    - '**.md'
+      - "**.md"
   push:
     paths-ignore:
-    - '**.md'
+      - "**.md"
     branches:
       - master
 
@@ -16,34 +16,34 @@ jobs:
     env:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
     steps:
-    - uses: cachix/install-nix-action@v31
-    - uses: actions/checkout@v5
-    - name: Check format
-      run: nix-shell --run 'nixpkgs-fmt --check .'
+      - uses: cachix/install-nix-action@v31
+      - uses: actions/checkout@v5
+      - name: Check format
+        run: nix-shell --run 'treefmt --ci'
 
   golangci-lint:
     runs-on: ubuntu-latest
     env:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
     steps:
-    - uses: cachix/install-nix-action@v31
-    - uses: actions/checkout@v5
-    - name: Run golangci-lint
-      run: nix-shell --run 'golangci-lint run'
+      - uses: cachix/install-nix-action@v31
+      - uses: actions/checkout@v5
+      - name: Run golangci-lint
+        run: nix-shell --run 'golangci-lint run'
 
   gomod2nix_toml:
     runs-on: ubuntu-latest
     env:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
     steps:
-    - uses: cachix/install-nix-action@v31
-    - uses: actions/checkout@v5
-    - name: "Build gomod2nix"
-      run: nix-shell --run "go build"
-    - name: Run gomod2nix
-      run: nix-shell --run gomod2nix
-    - name: Check diff
-      run: git diff --exit-code gomod2nix.toml
+      - uses: cachix/install-nix-action@v31
+      - uses: actions/checkout@v5
+      - name: "Build gomod2nix"
+        run: nix-shell --run "go build"
+      - name: Run gomod2nix
+        run: nix-shell --run gomod2nix
+      - name: Check diff
+        run: git diff --exit-code gomod2nix.toml
 
   list-jobs:
     runs-on: ubuntu-latest
