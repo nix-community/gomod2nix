@@ -17,7 +17,7 @@ type Package struct {
 
 type Sources map[string]string
 
-func populateStruct(path string, data interface{}) {
+func populateStruct(path string, data any) {
 	pathVal := os.Getenv(path)
 	if len(path) == 0 {
 		panic(fmt.Sprintf("env var '%s' was unset", path))
@@ -92,7 +92,7 @@ func populateVendorPath(vendorPath string, src string) {
 		dst := filepath.Join(vendorPath, f.Name())
 		if err := os.Symlink(innerSrc, dst); err != nil {
 			fmt.Println("symlink error, trying", innerSrc, err)
-			populateVendorPath(dst, innerSrc);
+			populateVendorPath(dst, innerSrc)
 		}
 	}
 }

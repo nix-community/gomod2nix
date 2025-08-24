@@ -13,7 +13,7 @@ func TestParallelExecutor_fnAlwaysErrors(t *testing.T) {
 	const maxWorkers = 1
 	executor := NewParallelExecutor(1)
 
-	for i := 0; i < maxWorkers+1; i++ {
+	for range maxWorkers + 1 {
 		executor.Add(func() error {
 			return errors.New("testerror")
 		})

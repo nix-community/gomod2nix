@@ -1,3 +1,4 @@
+// Package generate provides functions to import Go package sources and generate package metadata for Nix.
 package generate
 
 import (
@@ -102,7 +103,6 @@ func ImportPkgs(directory string, numWorkers int) error {
 
 	executor := lib.NewParallelExecutor(numWorkers)
 	for _, dl := range modDownloads {
-		dl := dl
 		executor.Add(func() error {
 			log.WithFields(log.Fields{
 				"goPackagePath": dl.Path,
@@ -163,8 +163,6 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 	}
 
 	for _, dl := range modDownloads {
-		dl := dl
-
 		goPackagePath, hasReplace := replace[dl.Path]
 		if !hasReplace {
 			goPackagePath = dl.Path

@@ -1,9 +1,11 @@
-package types
+// Package schema defines the schema for the package metadata used in caching and serialization.
+package schema
 
 import (
 	"bytes"
-	"github.com/BurntSushi/toml"
 	"os"
+
+	"github.com/BurntSushi/toml"
 )
 
 const SchemaVersion = 3
