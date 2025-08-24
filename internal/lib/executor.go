@@ -1,3 +1,4 @@
+// Package lib provides utility functions and types for general use.
 package lib
 
 import (

@@ -1,3 +1,4 @@
+// Package cmd implements the command line interface for gomod2nix
 package cmd
 
 import (
@@ -5,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	generate "github.com/nix-community/gomod2nix/internal/generate"
 	schema "github.com/nix-community/gomod2nix/internal/schema"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 const directoryDefault = "./"
