@@ -86,7 +86,8 @@ let
               (name: value: (
                 ''
                   mkdir -p $(dirname vendor/${name})
-                  ln -s ${pwd + "/${value.path}"} vendor/${name}
+                  # it could fail for overlapped modules, see: https://github.com/nix-community/gomod2nix/pull/156
+                  ln -s ${pwd + "/${value.path}"} vendor/${name} || true
                 ''
               ))
               localReplaceAttrs);
