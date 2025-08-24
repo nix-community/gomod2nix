@@ -151,22 +151,9 @@ let
       // {
         require = if typeOf require == "string" then normaliseString require else require;
         replace = if typeOf replace == "string" then normaliseString replace else replace;
+        exclude = if typeOf exclude == "string" then normaliseString exclude else exclude;
       }
     );
-
-  # Parse versions and dates from go.mod version string
-  parseVersion =
-    ver:
-    let
-      m = elemAt (match "([^-]+)-?([^-]*)-?([^-]*)" ver);
-      v = elemAt (match "([^+]+)\\+?(.*)" (m 0));
-    in
-    {
-      version = v 0;
-      versionSuffix = v 1;
-      date = m 1;
-      rev = m 2;
-    };
 
   # Parse package paths & versions from replace directives
   parseReplace =

@@ -1,46 +1,41 @@
 {
-  stdenv,
-  stdenvNoCC,
-  runCommand,
   buildEnv,
-  lib,
+  buildPackages,
+  cacert,
   fetchgit,
   git,
-  jq,
-  cacert,
-  pkgsBuildBuild,
-  buildPackages,
-  runtimeShell,
-  writeScript,
   gomod2nix,
+  jq,
+  lib,
+  pkgsBuildBuild,
   rsync,
+  runCommand,
+  runtimeShell,
+  stdenv,
+  stdenvNoCC,
+  writeScript,
 }:
 let
 
   inherit (builtins)
+    elemAt
+    hasAttr
+    readFile
+    split
     substring
     toJSON
-    hasAttr
-    trace
-    split
-    readFile
-    elemAt
     ;
   inherit (lib)
     concatStringsSep
-    replaceStrings
-    removePrefix
-    optionalString
-    pathExists
-    optional
-    concatMapStrings
     fetchers
     filterAttrs
     mapAttrs
     mapAttrsToList
-    warnIf
+    optional
     optionalAttrs
-    platforms
+    optionalString
+    pathExists
+    removePrefix
     ;
 
   parseGoMod = import ./parser.nix;
@@ -62,13 +57,11 @@ let
           '';
     in
     {
-
       # Create a symlink tree of vendored sources
       symlink = mkInternalPkg "symlink" ./symlink/symlink.go;
 
       # Install development dependencies from tools.go
       install = mkInternalPkg "symlink" ./install/install.go;
-
     };
 
   fetchGoModule =
@@ -83,10 +76,10 @@ let
       builder = ./fetch.sh;
       inherit goPackagePath version;
       nativeBuildInputs = [
-        go
-        git
-        jq
         cacert
+        git
+        go
+        jq
       ];
       outputHashMode = "recursive";
       outputHashAlgo = null;
@@ -222,9 +215,9 @@ let
       vendorEnv = mkVendorEnv {
         inherit
           go
+          goMod
           modulesStruct
           pwd
-          goMod
           ;
       };
 
@@ -301,10 +294,10 @@ let
 
       vendorEnv = mkVendorEnv {
         inherit
-          go
-          modulesStruct
           defaultPackage
+          go
           goMod
+          modulesStruct
           pwd
           ;
       };
