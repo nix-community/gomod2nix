@@ -65,6 +65,10 @@ The quickest way to get started if using Nix Flakes is to use the Flake template
 ``` bash
 $ nix flake init -t github:nix-community/gomod2nix#app
 ```
+It is also possible to use the container template to build container images:
+```bash
+$ nix flake init -t github:nix-community/gomod2nix#container
+```
 
 ## Basic usage
 
