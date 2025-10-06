@@ -18,6 +18,10 @@
           path = ./templates/app;
           description = "Gomod2nix packaged application";
         };
+        container = {
+          path = ./templates/container;
+          description = "Gomod2nix packaged container";
+        };
         default = self.templates.app;
       };
     }
