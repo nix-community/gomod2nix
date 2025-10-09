@@ -14,11 +14,11 @@ schema = 3
     version = "v1.9.3"
     hash = "sha256-EnxsWdEUPYid+aZ9H4/iMTs1XMvCLbXZRDyvj89Ebms="
   [mod."github.com/spf13/cobra"]
-    version = "v1.9.1"
-    hash = "sha256-dzEqquABE3UqZmJuj99244QjvfojS8cFlsPr/MXQGj0="
+    version = "v1.10.1"
+    hash = "sha256-OP6wdqk4dvBD8U5aicTkySHZ2s0LWnBo2TST2SmgcpM="
   [mod."github.com/spf13/pflag"]
-    version = "v1.0.6"
-    hash = "sha256-NjrK0FZPIfO/p2xtL1J7fOBQNTZAPZOC6Cb4aMMvhxI="
+    version = "v1.0.9"
+    hash = "sha256-YAjyYpq5BXCosVJtvYLWFG1t4gma2ylzc7ILLoj/hD8="
   [mod."golang.org/x/mod"]
     version = "v0.28.0"
     hash = "sha256-ijb9E3vzwTVg1vMI4jEkefbia0kXafECUtJ92Sr+qFA="
