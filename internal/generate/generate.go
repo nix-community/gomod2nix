@@ -166,10 +166,11 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 		goPackagePath, hasReplace := replace[dl.Path]
 		if !hasReplace {
 			goPackagePath = dl.Path
+			dl.Path = ""
 		}
 
 		cached, ok := cache[goPackagePath]
-		if ok && cached.Version == dl.Version {
+		if ok && cached.Version == dl.Version && cached.ReplacedPath == dl.Path {
 			addPkg(cached)
 			continue
 		}
@@ -190,9 +191,7 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 				GoPackagePath: goPackagePath,
 				Version:       dl.Version,
 				Hash:          "sha256-" + base64.StdEncoding.EncodeToString(digest),
-			}
-			if hasReplace {
-				pkg.ReplacedPath = dl.Path
+				ReplacedPath:  dl.Path,
 			}
 
 			addPkg(pkg)
