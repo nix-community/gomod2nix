@@ -62,6 +62,32 @@ func common(directory string) ([]*goModDownload, map[string]string, error) {
 		replace[repl.New.Path] = repl.Old.Path
 	}
 
+	whyCmd := exec.Command(
+		"go", "mod", "why", "-m", "all",
+	)
+	whyCmd.Dir = directory
+	listStdout, err := whyCmd.Output()
+	if err != nil {
+		return nil, nil, err
+	}
+	res := make(map[string]bool)
+	lines := strings.Split(string(listStdout), "\n")
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		if strings.Index(line, "# ") != 0 {
+			continue
+		}
+		if len(lines) <= i+1 {
+			break
+		}
+		if strings.Index(lines[i+1], "(main") != 0 {
+			continue
+		}
+		path := line[2:]
+		res[path] = true
+		i += 1
+	}
+
 	var modDownloads []*goModDownload
 	{
 		log.Info("Downloading dependencies")
@@ -86,7 +112,9 @@ func common(directory string) ([]*goModDownload, map[string]string, error) {
 			if err == io.EOF {
 				break
 			}
-			modDownloads = append(modDownloads, dl)
+			if !res[dl.Path] {
+				modDownloads = append(modDownloads, dl)
+			}
 		}
 
 		log.Info("Done downloading dependencies")
