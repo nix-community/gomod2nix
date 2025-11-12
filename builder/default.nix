@@ -213,8 +213,7 @@ let
       allowGoReference = if allowGoReference then "1" else "";
 
       # Pass tags and ldflags (used by hooks)
-      tags = lib.concatStringsSep "," tags;
-      ldflags = lib.concatStringsSep " " ldflags;
+      inherit tags ldflags;
 
       goVendorDir = vendorEnv;
 
@@ -516,8 +515,7 @@ let
 
         goVendorDir = if vendorEnv != null then vendorEnv else "";
         goCacheDir = if cacheEnv != null then cacheEnv else "";
-        tags = lib.concatStringsSep "," tags;
-        ldflags = lib.concatStringsSep " " ldflags;
+        inherit tags ldflags;
         modRoot = attrs.modRoot or "";
 
         doCheck = attrs.doCheck or true;
