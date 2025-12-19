@@ -64,28 +64,44 @@ let
       install = mkInternalPkg "symlink" ./install/install.go;
     };
 
+  # Convert module path to a valid derivation name
+  sanitizeName = path: builtins.replaceStrings [ "/" "." "@" ] [ "-" "-" "-" ] path;
+
+  # Fetch a Go module, optionally using a pre-fetched source from the sources attrset.
+  # The sources parameter allows overriding module fetching for private dependencies
+  # that cannot be fetched via the Go module proxy.
   fetchGoModule =
     {
       hash,
       goPackagePath,
       version,
       go,
+      sources ? { },
     }:
-    stdenvNoCC.mkDerivation {
-      name = "${baseNameOf goPackagePath}_${version}";
-      builder = ./fetch.sh;
-      inherit goPackagePath version;
-      nativeBuildInputs = [
-        cacert
-        git
-        go
-        jq
-      ];
-      outputHashMode = "recursive";
-      outputHashAlgo = null;
-      outputHash = hash;
-      impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
-    };
+    let
+      # Key format: "${goPackagePath}@${version}"
+      # Using the full module path avoids collisions between modules with the same
+      # base name (e.g., "github.com/foo/bar/v2@v2.0.0" vs "github.com/baz/bar/v2@v2.0.0")
+      sourceKey = "${goPackagePath}@${version}";
+    in
+    if hasAttr sourceKey sources then
+      sources.${sourceKey}
+    else
+      stdenvNoCC.mkDerivation {
+        name = "${sanitizeName goPackagePath}_${version}";
+        builder = ./fetch.sh;
+        inherit goPackagePath version;
+        nativeBuildInputs = [
+          cacert
+          git
+          go
+          jq
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = null;
+        outputHash = hash;
+        impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
+      };
 
   mkVendorEnv =
     {
@@ -95,6 +111,7 @@ let
       defaultPackage ? "",
       goMod,
       pwd,
+      sources ? { },
     }:
     let
       localReplaceCommands =
@@ -109,12 +126,12 @@ let
         in
         if goMod != null then commands else [ ];
 
-      sources = mapAttrs (
+      fetchedSources = mapAttrs (
         goPackagePath: meta:
         fetchGoModule {
           goPackagePath = meta.replaced or goPackagePath;
           inherit (meta) version hash;
-          inherit go;
+          inherit go sources;
         }
       ) modulesStruct.mod;
     in
@@ -123,10 +140,10 @@ let
         nativeBuildInputs = [ go ];
         json = toJSON (filterAttrs (n: _: n != defaultPackage) modulesStruct.mod);
 
-        sources = toJSON (filterAttrs (n: _: n != defaultPackage) sources);
+        sources = toJSON (filterAttrs (n: _: n != defaultPackage) fetchedSources);
 
         passthru = {
-          inherit sources;
+          sources = fetchedSources;
         };
 
         passAsFile = [
@@ -204,6 +221,9 @@ let
       pwd,
       toolsGo ? pwd + "/tools.go",
       modules ? pwd + "/gomod2nix.toml",
+      # Pre-fetched sources for private/vendored dependencies that cannot be
+      # fetched via the Go module proxy. Key format: "${goPackagePath}@${version}"
+      sources ? { },
       ...
     }@attrs:
     let
@@ -218,12 +238,16 @@ let
           goMod
           modulesStruct
           pwd
+          sources
           ;
       };
 
     in
     stdenv.mkDerivation (
-      removeAttrs attrs [ "pwd" ]
+      removeAttrs attrs [
+        "pwd"
+        "sources"
+      ]
       // {
         name = "${baseNameOf goMod.module}-env";
 
@@ -278,7 +302,10 @@ let
       passthru ? { },
       tags ? [ ],
       ldflags ? [ ],
-
+      # Pre-fetched sources for private/vendored dependencies that cannot be
+      # fetched via the Go module proxy. Key format: "${goPackagePath}@${version}"
+      # Example: "github.com/myorg/private-lib@v1.2.3" = fetchedSource;
+      sources ? { },
       ...
     }@attrs:
     let
@@ -299,6 +326,7 @@ let
           goMod
           modulesStruct
           pwd
+          sources
           ;
       };
 
@@ -314,7 +342,7 @@ let
       // optionalAttrs (hasAttr "subPackages" modulesStruct) {
         subPackages = modulesStruct.subPackages;
       }
-      // attrs
+      // removeAttrs attrs [ "sources" ]
       // {
         nativeBuildInputs = [
           rsync
