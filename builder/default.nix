@@ -70,6 +70,7 @@ let
       goPackagePath,
       version,
       go,
+      netrcFile ? null,
     }:
     stdenvNoCC.mkDerivation {
       name = "${baseNameOf goPackagePath}_${version}";
@@ -84,7 +85,13 @@ let
       outputHashMode = "recursive";
       outputHashAlgo = null;
       outputHash = hash;
+      # GOPROXY: Go module proxy URL (standard Go env var)
       impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
+    }
+    # netrcFile: Path to .netrc file for private module authentication
+    # Read at eval time and passed as env var
+    // optionalAttrs (netrcFile != null) {
+      NETRC_CONTENT = readFile netrcFile;
     };
 
   mkVendorEnv =
@@ -95,6 +102,7 @@ let
       defaultPackage ? "",
       goMod,
       pwd,
+      netrcFile ? null,
     }:
     let
       localReplaceCommands =
@@ -114,7 +122,7 @@ let
         fetchGoModule {
           goPackagePath = meta.replaced or goPackagePath;
           inherit (meta) version hash;
-          inherit go;
+          inherit go netrcFile;
         }
       ) modulesStruct.mod;
     in
@@ -278,15 +286,23 @@ let
       passthru ? { },
       tags ? [ ],
       ldflags ? [ ],
+      # Path to .netrc file for private module authentication
+      netrcFile ? null,
+      # Optional: path to go.mod file for parsing (avoids IFD when pwd is a derivation)
+      # Use this when pwd points to a derivation output to avoid eval-time IFD
+      goModFile ? null,
 
       ...
     }@attrs:
     let
       modulesStruct = if modules == null then { } else fromTOML (readFile modules);
 
-      goModPath = "${toString pwd}/go.mod";
+      # Use explicit goModFile if provided, otherwise derive from pwd
+      goModPath = if goModFile != null then goModFile else "${toString pwd}/go.mod";
 
-      goMod = if pwd != null && pathExists goModPath then parseGoMod (readFile goModPath) else null;
+      # Don't use pathExists on derivation outputs as it forces IFD (Import From Derivation).
+      # If pwd is provided, assume go.mod exists there.
+      goMod = if pwd != null || goModFile != null then parseGoMod (readFile goModPath) else null;
 
       go = selectGo attrs goMod;
 
@@ -298,6 +314,7 @@ let
           go
           goMod
           modulesStruct
+          netrcFile
           pwd
           ;
       };
