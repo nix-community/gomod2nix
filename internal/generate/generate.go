@@ -123,17 +123,25 @@ builtins.filterSource (name: type: baseNameOf name != ".DS_Store") (
 )
 `, dl.Dir, pathName),
 			)
-			cmd.Stderr = os.Stderr
 
-			err = cmd.Start()
-			if err != nil {
-				fmt.Println(cmd)
-				return err
-			}
+			// Capture stderr to detect specific errors
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
 
-			err = cmd.Wait()
+			err = cmd.Run()
 			if err != nil {
-				fmt.Println(cmd)
+				stderrStr := stderr.String()
+				// Check if this is a "path not in store" error (common with private repos)
+				// These can be safely skipped - the sources parameter can be used instead
+				if strings.Contains(stderrStr, "did not exist in the store") ||
+					strings.Contains(stderrStr, "does not exist") {
+					log.WithFields(log.Fields{
+						"goPackagePath": dl.Path,
+					}).Warn("Skipping import (path not accessible, use 'sources' parameter for private repos)")
+					return nil
+				}
+				// For other errors, print and return
+				fmt.Fprint(os.Stderr, stderrStr)
 				return err
 			}
 

@@ -107,7 +107,8 @@ var importCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		err := generate.ImportPkgs(flagDirectory, maxJobs)
 		if err != nil {
-			panic(err)
+			log.WithError(err).Error("Failed to import sources")
+			os.Exit(1)
 		}
 	},
 }
