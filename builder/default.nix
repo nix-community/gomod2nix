@@ -72,27 +72,29 @@ let
       go,
       netrcFile ? null,
     }:
-    stdenvNoCC.mkDerivation {
-      name = "${baseNameOf goPackagePath}_${version}";
-      builder = ./fetch.sh;
-      inherit goPackagePath version;
-      nativeBuildInputs = [
-        cacert
-        git
-        go
-        jq
-      ];
-      outputHashMode = "recursive";
-      outputHashAlgo = null;
-      outputHash = hash;
-      # GOPROXY: Go module proxy URL (standard Go env var)
-      impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
-    }
-    # netrcFile: Path to .netrc file for private module authentication
-    # Read at eval time and passed as env var
-    // optionalAttrs (netrcFile != null) {
-      NETRC_CONTENT = readFile netrcFile;
-    };
+    stdenvNoCC.mkDerivation (
+      {
+        name = "${baseNameOf goPackagePath}_${version}";
+        builder = ./fetch.sh;
+        inherit goPackagePath version;
+        nativeBuildInputs = [
+          cacert
+          git
+          go
+          jq
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = null;
+        outputHash = hash;
+        # GOPROXY: Go module proxy URL (standard Go env var)
+        impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
+      }
+      # netrcFile: Path to .netrc file for private module authentication
+      # Read at eval time and passed as env var
+      // optionalAttrs (netrcFile != null) {
+        NETRC_CONTENT = readFile netrcFile;
+      }
+    );
 
   mkVendorEnv =
     {
@@ -300,9 +302,17 @@ let
       # Use explicit goModFile if provided, otherwise derive from pwd
       goModPath = if goModFile != null then goModFile else "${toString pwd}/go.mod";
 
-      # Don't use pathExists on derivation outputs as it forces IFD (Import From Derivation).
-      # If pwd is provided, assume go.mod exists there.
-      goMod = if pwd != null || goModFile != null then parseGoMod (readFile goModPath) else null;
+      # If goModFile is explicitly provided, trust it exists.
+      # If pwd is provided, check if go.mod exists (pathExists is safe for non-derivation paths).
+      # Note: If pwd is a derivation and you need go.mod parsing, use goModFile parameter
+      # to avoid IFD (Import From Derivation).
+      goMod =
+        if goModFile != null then
+          parseGoMod (readFile goModPath)
+        else if pwd != null && pathExists goModPath then
+          parseGoMod (readFile goModPath)
+        else
+          null;
 
       go = selectGo attrs goMod;
 
