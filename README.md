@@ -27,6 +27,28 @@ in pkgs.buildGoApplication {
 
 For more in-depth usage check the [Getting Started](./docs/getting-started.md) and the [Nix API reference](./docs/nix-reference.md) docs.
 
+### Private repositories
+
+Gomod2nix supports private Go module repositories. Use the `--private` flag to generate hashes for private repos:
+
+``` bash
+$ gomod2nix generate --private=github.com/myorg,git.company.com
+```
+
+Then specify `privateRepoPrefixes` in your Nix configuration:
+
+``` nix
+pkgs.buildGoApplication {
+  pname = "myapp";
+  version = "0.1";
+  src = ./.;
+  modules = ./gomod2nix.toml;
+  privateRepoPrefixes = [ "github.com/myorg" ];
+}
+```
+
+See [Working with private repositories](./docs/getting-started.md#working-with-private-repositories) for details.
+
 ## Motivation
 
 The [announcement blog post](https://www.tweag.io/blog/2021-03-04-gomod2nix/) contains comparisons with other Go build systems for Nix and additional notes on the design choices made.

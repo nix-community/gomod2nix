@@ -15,6 +15,9 @@ type Package struct {
 	Version       string `toml:"version"`
 	Hash          string `toml:"hash"`
 	ReplacedPath  string `toml:"replaced,omitempty"`
+	// Git-specific fields for private repos (fetched via builtins.fetchGit)
+	GitHash string `toml:"gitHash,omitempty"` // NAR hash of git checkout
+	GitRev  string `toml:"gitRev,omitempty"`  // Git commit revision
 }
 
 type Output struct {

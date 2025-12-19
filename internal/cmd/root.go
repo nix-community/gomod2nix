@@ -15,9 +15,10 @@ import (
 const directoryDefault = "./"
 
 var (
-	flagDirectory string
-	flagOutDir    string
-	maxJobs       int
+	flagDirectory           string
+	flagOutDir              string
+	maxJobs                 int
+	flagPrivateRepoPrefixes []string
 )
 
 func generateFunc(cmd *cobra.Command, args []string) {
@@ -63,7 +64,7 @@ func generateFunc(cmd *cobra.Command, args []string) {
 	{
 		goMod2NixPath := filepath.Join(outDir, "gomod2nix.toml")
 		outFile := goMod2NixPath
-		pkgs, err := generate.GeneratePkgs(directory, goMod2NixPath, maxJobs)
+		pkgs, err := generate.GeneratePkgsWithPrivate(directory, goMod2NixPath, maxJobs, flagPrivateRepoPrefixes)
 		if err != nil {
 			panic(fmt.Errorf("error generating pkgs: %v", err))
 		}
@@ -117,6 +118,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&flagDirectory, "dir", "./", "Go project directory")
 	rootCmd.PersistentFlags().StringVar(&flagOutDir, "outdir", "", "Output directory (defaults to project directory)")
 	rootCmd.PersistentFlags().IntVar(&maxJobs, "jobs", 10, "Max number of concurrent jobs")
+	rootCmd.PersistentFlags().StringSliceVar(&flagPrivateRepoPrefixes, "private", nil, "Private repo prefixes for git hash generation (comma-separated, e.g., 'github.com/myorg,git.company.com')")
 
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(importCmd)

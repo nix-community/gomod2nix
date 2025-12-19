@@ -67,27 +67,50 @@ let
   # Convert module path to a valid derivation name
   sanitizeName = path: builtins.replaceStrings [ "/" "." "@" ] [ "-" "-" "-" ] path;
 
-  # Fetch a Go module, optionally using a pre-fetched source from the sources attrset.
-  # The sources parameter allows overriding module fetching for private dependencies
-  # that cannot be fetched via the Go module proxy.
+  # Fetch a Go module.
+  #
+  # Supports multiple fetch strategies (in order of priority):
+  # 1. Manual sources override via 'sources' parameter
+  # 2. Git fetch for private repos with pre-computed hashes (gitHash/gitRev)
+  # 3. Standard Go module proxy fetch
   fetchGoModule =
     {
       hash,
       goPackagePath,
       version,
       go,
+      # Manual source overrides. Key format: "${goPackagePath}@${version}"
       sources ? { },
+      # Module prefixes to fetch via git instead of Go proxy
+      privateRepoPrefixes ? [ ],
+      # Git-specific hash and rev (from gomod2nix generate --private)
+      gitHash ? null,
+      gitRev ? null,
     }:
     let
-      # Key format: "${goPackagePath}@${version}"
-      # Using the full module path avoids collisions between modules with the same
-      # base name (e.g., "github.com/foo/bar/v2@v2.0.0" vs "github.com/baz/bar/v2@v2.0.0")
       sourceKey = "${goPackagePath}@${version}";
-    in
-    if hasAttr sourceKey sources then
-      sources.${sourceKey}
-    else
-      stdenvNoCC.mkDerivation {
+      isPrivateRepo = builtins.any (prefix: lib.hasPrefix prefix goPackagePath) privateRepoPrefixes;
+      hasGitInfo = gitHash != null && gitRev != null;
+
+      # Convert Go module path to SSH git URL
+      pathParts = lib.splitString "/" goPackagePath;
+      host = builtins.elemAt pathParts 0;
+      pathWithoutVersion = lib.concatStringsSep "/" (
+        builtins.filter (p: !(lib.hasPrefix "v" p && builtins.match "v[0-9]+" p != null)) (
+          lib.drop 1 pathParts
+        )
+      );
+      gitUrl = "git@${host}:${pathWithoutVersion}.git";
+
+      fetchedPrivateRepo = builtins.fetchGit {
+        url = gitUrl;
+        rev = gitRev;
+        allRefs = true;
+        narHash = gitHash;
+      };
+
+      # Standard fetch via Go module proxy
+      standardFetch = stdenvNoCC.mkDerivation {
         name = "${sanitizeName goPackagePath}_${version}";
         builder = ./fetch.sh;
         inherit goPackagePath version;
@@ -102,6 +125,14 @@ let
         outputHash = hash;
         impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
       };
+    in
+    if hasAttr sourceKey sources then
+      sources.${sourceKey}
+    else if isPrivateRepo && hasGitInfo then
+      fetchedPrivateRepo
+    else
+      # Fall back to standard fetch (works if GOPROXY is configured for private repos)
+      standardFetch;
 
   mkVendorEnv =
     {
@@ -112,6 +143,7 @@ let
       goMod,
       pwd,
       sources ? { },
+      privateRepoPrefixes ? [ ],
     }:
     let
       localReplaceCommands =
@@ -131,7 +163,10 @@ let
         fetchGoModule {
           goPackagePath = meta.replaced or goPackagePath;
           inherit (meta) version hash;
-          inherit go sources;
+          inherit go sources privateRepoPrefixes;
+          # Pass git-specific fields if present (from gomod2nix generate --private)
+          gitHash = meta.gitHash or null;
+          gitRev = meta.gitRev or null;
         }
       ) modulesStruct.mod;
     in
@@ -221,9 +256,10 @@ let
       pwd,
       toolsGo ? pwd + "/tools.go",
       modules ? pwd + "/gomod2nix.toml",
-      # Pre-fetched sources for private/vendored dependencies that cannot be
-      # fetched via the Go module proxy. Key format: "${goPackagePath}@${version}"
+      # Manual source overrides. Key format: "${goPackagePath}@${version}"
       sources ? { },
+      # Module prefixes to fetch via git instead of Go proxy
+      privateRepoPrefixes ? [ ],
       ...
     }@attrs:
     let
@@ -239,6 +275,7 @@ let
           modulesStruct
           pwd
           sources
+          privateRepoPrefixes
           ;
       };
 
@@ -247,6 +284,7 @@ let
       removeAttrs attrs [
         "pwd"
         "sources"
+        "privateRepoPrefixes"
       ]
       // {
         name = "${baseNameOf goMod.module}-env";
@@ -302,10 +340,10 @@ let
       passthru ? { },
       tags ? [ ],
       ldflags ? [ ],
-      # Pre-fetched sources for private/vendored dependencies that cannot be
-      # fetched via the Go module proxy. Key format: "${goPackagePath}@${version}"
-      # Example: "github.com/myorg/private-lib@v1.2.3" = fetchedSource;
+      # Manual source overrides. Key format: "${goPackagePath}@${version}"
       sources ? { },
+      # Module prefixes to fetch via git instead of Go proxy
+      privateRepoPrefixes ? [ ],
       ...
     }@attrs:
     let
@@ -327,6 +365,7 @@ let
           modulesStruct
           pwd
           sources
+          privateRepoPrefixes
           ;
       };
 
@@ -342,7 +381,10 @@ let
       // optionalAttrs (hasAttr "subPackages" modulesStruct) {
         subPackages = modulesStruct.subPackages;
       }
-      // removeAttrs attrs [ "sources" ]
+      // removeAttrs attrs [
+        "sources"
+        "privateRepoPrefixes"
+      ]
       // {
         nativeBuildInputs = [
           rsync
