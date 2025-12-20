@@ -15,6 +15,8 @@ Arguments:
 - **tags** A list of tags to pass the Go compiler during the build (\_default: `[ ]`).
 - **ldflags** A list of `ldflags` to pass the Go compiler during the build (\_default: `[ ]`).
 - **nativeBuildInputs** A list of packages to include in the build derivation (\_default: `[ ]`).
+- **sources** Manual source overrides (\_default: `{ }`). Keys use format `"<module-path>@<version>"`.
+- **privateRepoPrefixes** Module prefixes to fetch via git instead of Go proxy (\_default: `[ ]`).
 
 All other arguments are passed verbatim to `stdenv.mkDerivation`.
 
@@ -25,5 +27,7 @@ Arguments:
 - **pwd** Path to working directory.
 - **modules** Path to `gomod2nix.toml` (\_default: `pwd + "/gomod2nix.toml"`).
 - **toolsGo** Path to `tools.go` (\_default: `pwd + "/tools.go"`).
+- **sources** Manual source overrides (\_default: `{ }`). Keys use format `"<module-path>@<version>"`.
+- **privateRepoPrefixes** Module prefixes to fetch via git instead of Go proxy (\_default: `[ ]`).
 
 All other arguments are passed verbatim to `stdenv.mkDerivation`.
