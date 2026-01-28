@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"os"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 const SchemaVersion = 3
@@ -28,7 +28,7 @@ type Output struct {
 	GoPackagePath string `toml:"goPackagePath,omitempty"`
 
 	// List of packages to pre-compile in build cache for faster builds
-	CachePackages []string `toml:"cachePackages,omitempty"`
+	CachePackages []string `toml:"cachePackages,multiline,omitempty"`
 }
 
 func Marshal(pkgs []*Package, goPackagePath string, subPackages []string, cachePackages []string) ([]byte, error) {
@@ -67,8 +67,7 @@ func ReadCache(filePath string) map[string]*Package {
 	}
 
 	var output Output
-	_, err = toml.Decode(string(b), &output)
-	if err != nil {
+	if err := toml.Unmarshal(b, &output); err != nil {
 		return ret
 	}
 
