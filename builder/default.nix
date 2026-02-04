@@ -442,10 +442,11 @@ let
 
       # Filter source to only dependency files for cache derivation
       # Use fetched source when building from goPackagePath
+      # When pwd is set but doesn't contain go.mod (goMod == null), use src instead
       depFilesSrc =
         if defaultPackage != "" then
           vendorEnv.passthru.sources.${defaultPackage}
-        else if pwd != null then
+        else if goMod != null then
           pwd
         else
           src;
