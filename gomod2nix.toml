@@ -2,8 +2,8 @@ schema = 3
 
 [mod]
   [mod."github.com/BurntSushi/toml"]
-    version = "v1.5.0"
-    hash = "sha256-wX8bEVo7swuuAlm0awTIiV1KNCAXnm7Epzwl+wzyqhw="
+    version = "v1.6.0"
+    hash = "sha256-ptdUJvuc21ixeLt+M5way/na3aCnCO4MYHWulWp8NEY="
   [mod."github.com/inconshreveable/mousetrap"]
     version = "v1.1.0"
     hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
@@ -11,8 +11,8 @@ schema = 3
     version = "v0.0.0-20220612195009-5f5614f7ca47"
     hash = "sha256-eBPzib8STUZnDpLFpWZz+F00thbp1P/98oiEE/XWE+M="
   [mod."github.com/sirupsen/logrus"]
-    version = "v1.9.3"
-    hash = "sha256-EnxsWdEUPYid+aZ9H4/iMTs1XMvCLbXZRDyvj89Ebms="
+    version = "v1.9.4"
+    hash = "sha256-ltRvmtM3XTCAFwY0IesfRqYIivyXPPuvkFjL4ARh1wg="
   [mod."github.com/spf13/cobra"]
     version = "v1.10.1"
     hash = "sha256-OP6wdqk4dvBD8U5aicTkySHZ2s0LWnBo2TST2SmgcpM="
@@ -20,8 +20,8 @@ schema = 3
     version = "v1.0.9"
     hash = "sha256-YAjyYpq5BXCosVJtvYLWFG1t4gma2ylzc7ILLoj/hD8="
   [mod."golang.org/x/mod"]
-    version = "v0.30.0"
-    hash = "sha256-tZJikWbjGgN5rCgB/dqj3dpn9BfAZUVyXmd3KavAgLE="
+    version = "v0.32.0"
+    hash = "sha256-4gbgIqTOo0vcYV3l4MIwmT/h8H9PXmcfrJ3z4B26Zl0="
   [mod."golang.org/x/sys"]
     version = "v0.14.0"
     hash = "sha256-ReIRQmONicRW9idzGVPCBx5TTcKacmQTF1vPC3L4SxY="
