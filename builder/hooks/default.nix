@@ -1,17 +1,16 @@
 {
   lib,
   makeSetupHook,
-  rsync,
+  buildPackages,
   stdenv,
-  gnutar,
-  zstd,
 }:
 {
   goConfigHook = makeSetupHook {
     name = "goConfigHook";
-    # propagatedBuildInputs = [ rsync gnutar zstd ];
     substitutions = {
-      inherit rsync gnutar zstd;
+      rsync = lib.getExe buildPackages.rsync;
+      tar = lib.getExe buildPackages.gnutar;
+      zstd = lib.getExe buildPackages.zstd;
     };
   } ./go-config-hook.sh;
 

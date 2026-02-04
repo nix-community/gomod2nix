@@ -66,7 +66,7 @@ goConfigHook() {
         if [ -n "${goVendorDir}" ]; then
             echo "Setting up vendor directory from ${goVendorDir}"
             rm -rf vendor
-            @rsync@/bin/rsync -a -K --ignore-errors "${goVendorDir}"/ vendor
+            @rsync@ -a -K --ignore-errors "${goVendorDir}"/ vendor
         fi
     fi
 
@@ -75,7 +75,7 @@ goConfigHook() {
         if [ -n "${goCacheDir}" ] && [ -f "${goCacheDir}/cache.tar.zst" ]; then
             echo "Restoring Go build cache from ${goCacheDir}/cache.tar.zst"
             mkdir -p "$GOCACHE"
-            @zstd@/bin/zstd -d -c "${goCacheDir}/cache.tar.zst" | @gnutar@/bin/tar -xf - -C "$GOCACHE"
+            @zstd@ -d -c "${goCacheDir}/cache.tar.zst" | @tar@ -xf - -C "$GOCACHE"
             chmod -R +w "$GOCACHE"
         fi
     fi

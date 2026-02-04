@@ -24,10 +24,8 @@ let
     inherit
       lib
       makeSetupHook
-      rsync
+      buildPackages
       stdenv
-      gnutar
-      zstd
       ;
   };
 
@@ -200,7 +198,6 @@ let
         goConfigHook
         gnutar
         zstd
-        # goConfigHook
       ]
       ++ nativeBuildInputs;
 
