@@ -46,6 +46,7 @@ func Marshal(pkgs []*Package, goPackagePath string, subPackages []string, cacheP
 
 	var buf bytes.Buffer
 	e := toml.NewEncoder(&buf)
+	e.SetIndentTables(true)
 	err := e.Encode(out)
 	if err != nil {
 		return nil, err
