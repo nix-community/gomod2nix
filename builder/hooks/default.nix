@@ -8,6 +8,11 @@
   goConfigHook = makeSetupHook {
     name = "goConfigHook";
     substitutions = {
+      # From some reason using these packages directly breaks cross compilation
+      # with gomod2nix - meaning e.g the hook tries to use an rsync binary from
+      # the host platform and not the build platform. In Nixpkgs this exact
+      # issue does not exist. Using `pkgs.__splicedPackages.callPackage` in
+      # `flake.nix` doesn't help, but it might be related.
       rsync = lib.getExe buildPackages.rsync;
       tar = lib.getExe buildPackages.gnutar;
       zstd = lib.getExe buildPackages.zstd;
