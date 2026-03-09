@@ -53,6 +53,7 @@ goConfigHook() {
     export GOPROXY=off
     export GO_NO_VENDOR_CHECKS=1
     export GO111MODULE=on
+    export GOWORK=off
 
     export GOFLAGS="${GOFLAGS:+$GOFLAGS } -mod=vendor"
     if [ "${allowGoReference:-}" != "1" ]; then

@@ -1,4 +1,4 @@
-schema = 3
+schema = 4
 
 [mod]
   [mod.'github.com/inconshreveable/mousetrap']

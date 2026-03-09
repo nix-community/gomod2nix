@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "${0%/*}"
+
+# Run gomod2nix from workspace root — should auto-detect go.work
+# and generate a single gomod2nix.toml at the workspace root
+$GOMOD2NIX --dir .
+
+# Verify gomod2nix.toml was generated at the workspace root
+if [ ! -f gomod2nix.toml ]; then
+    echo "ERROR: gomod2nix.toml was not generated at workspace root"
+    exit 1
+fi
+
+# Verify it contains workspace metadata
+if ! grep -q 'workspace = true' gomod2nix.toml; then
+    echo "ERROR: gomod2nix.toml does not contain workspace = true"
+    exit 1
+fi
+
+if ! grep -q 'workspaceModules' gomod2nix.toml; then
+    echo "ERROR: gomod2nix.toml does not contain workspaceModules"
+    exit 1
+fi
+
+echo "Workspace generation succeeded"

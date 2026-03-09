@@ -113,6 +113,7 @@ let
     {
       go,
       modulesStruct,
+      mod ? modulesStruct.mod,
       defaultPackage ? "",
       goMod,
       pwd,
@@ -137,12 +138,12 @@ let
           inherit (meta) version hash;
           inherit go;
         }
-      ) modulesStruct.mod;
+      ) mod;
     in
     runCommand "vendor-env"
       {
         nativeBuildInputs = [ go ];
-        json = toJSON (filterAttrs (n: _: n != defaultPackage) modulesStruct.mod);
+        json = toJSON (filterAttrs (n: _: n != defaultPackage) mod);
 
         sources = toJSON (filterAttrs (n: _: n != defaultPackage) sources);
 
@@ -205,6 +206,7 @@ let
 
       inherit (go) GOOS GOARCH;
       inherit CGO_ENABLED;
+      GOWORK = "off";
 
       # Pass allowGoReference to hook for GOFLAGS configuration
       allowGoReference = if allowGoReference then "1" else "";
@@ -409,6 +411,7 @@ let
       tags ? [ ],
       ldflags ? [ ],
       disableGoCache ? false,
+      workspaceModule ? null,
 
       ...
     }@attrs:
@@ -423,6 +426,35 @@ let
 
       defaultPackage = modulesStruct.goPackagePath or "";
 
+      # When workspaceModule is set, filter mod to only that module's transitive deps
+      allMod = modulesStruct.mod or { };
+
+      wsModuleInfo =
+        if workspaceModule != null then
+          if
+            hasAttr "workspaceModules" modulesStruct
+            && hasAttr workspaceModule modulesStruct.workspaceModules
+          then
+            modulesStruct.workspaceModules.${workspaceModule}
+          else
+            throw "buildGoApplication: workspaceModule '${workspaceModule}' not found in gomod2nix.toml workspaceModules. Available: ${builtins.toString (builtins.attrNames (modulesStruct.workspaceModules or { }))}"
+        else
+          null;
+
+      effectiveMod =
+        if wsModuleInfo != null then
+          let
+            allowedSet = builtins.listToAttrs (
+              map (name: {
+                inherit name;
+                value = true;
+              }) wsModuleInfo.deps
+            );
+          in
+          filterAttrs (n: _: hasAttr n allowedSet) allMod
+        else
+          allMod;
+
       vendorEnv =
         if modulesStruct != { } then
           mkVendorEnv {
@@ -433,6 +465,7 @@ let
               modulesStruct
               pwd
               ;
+            mod = effectiveMod;
           }
         else
           null;
@@ -493,7 +526,7 @@ let
       // optionalAttrs (hasAttr "subPackages" modulesStruct) {
         subPackages = modulesStruct.subPackages;
       }
-      // attrs
+      // removeAttrs attrs [ "workspaceModule" ]
       // {
         nativeBuildInputs = [
           go
@@ -507,6 +540,7 @@ let
         inherit (go) GOOS GOARCH;
 
         CGO_ENABLED = attrs.CGO_ENABLED or go.CGO_ENABLED;
+        GOWORK = "off";
 
         # Pass allowGoReference to hook for GOFLAGS configuration
         allowGoReference = if allowGoReference then "1" else "";
@@ -514,7 +548,13 @@ let
         goVendorDir = if vendorEnv != null then vendorEnv else "";
         goCacheDir = if cacheEnv != null then cacheEnv else "";
         inherit tags ldflags;
-        modRoot = attrs.modRoot or "";
+        modRoot =
+          if attrs ? modRoot then
+            attrs.modRoot
+          else if wsModuleInfo != null then
+            wsModuleInfo.dir
+          else
+            "";
 
         doCheck = attrs.doCheck or true;
 

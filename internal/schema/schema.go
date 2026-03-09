@@ -8,7 +8,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const SchemaVersion = 3
+const SchemaVersion = 4
 
 type Package struct {
 	GoPackagePath string `toml:"-"`
@@ -17,18 +17,23 @@ type Package struct {
 	ReplacedPath  string `toml:"replaced,omitempty"`
 }
 
+type WorkspaceModuleInfo struct {
+	Dir  string   `toml:"dir"`
+	Deps []string `toml:"deps"`
+}
+
 type Output struct {
 	SchemaVersion int                 `toml:"schema"`
 	Mod           map[string]*Package `toml:"mod"`
 
-	// Packages with passed import paths trigger `go install` based on this list
 	SubPackages []string `toml:"subPackages,omitempty"`
 
-	// Packages with passed import paths has a "default package" which pname & version is inherit from
 	GoPackagePath string `toml:"goPackagePath,omitempty"`
 
-	// List of packages to pre-compile in build cache for faster builds
 	CachePackages []string `toml:"cachePackages,multiline,omitempty"`
+
+	Workspace        bool                                `toml:"workspace,omitempty"`
+	WorkspaceModules map[string]*WorkspaceModuleInfo `toml:"workspaceModules,omitempty"`
 }
 
 func Marshal(pkgs []*Package, goPackagePath string, subPackages []string, cachePackages []string) ([]byte, error) {
@@ -38,6 +43,30 @@ func Marshal(pkgs []*Package, goPackagePath string, subPackages []string, cacheP
 		SubPackages:   subPackages,
 		GoPackagePath: goPackagePath,
 		CachePackages: cachePackages,
+	}
+
+	for _, pkg := range pkgs {
+		out.Mod[pkg.GoPackagePath] = pkg
+	}
+
+	var buf bytes.Buffer
+	e := toml.NewEncoder(&buf)
+	e.SetIndentTables(true)
+	err := e.Encode(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func MarshalWorkspace(pkgs []*Package, workspaceModules map[string]*WorkspaceModuleInfo, cachePackages []string) ([]byte, error) {
+	out := &Output{
+		SchemaVersion:    SchemaVersion,
+		Mod:              make(map[string]*Package),
+		Workspace:        true,
+		WorkspaceModules: workspaceModules,
+		CachePackages:    cachePackages,
 	}
 
 	for _, pkg := range pkgs {
@@ -72,7 +101,7 @@ func ReadCache(filePath string) map[string]*Package {
 		return ret
 	}
 
-	if output.SchemaVersion != SchemaVersion {
+	if output.SchemaVersion != SchemaVersion && output.SchemaVersion != 3 {
 		return ret
 	}
 
