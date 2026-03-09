@@ -291,10 +291,11 @@ func commonWorkspace(workspace *WorkspaceInfo) ([]*goModDownload, map[string]str
 	return modDownloads, replace, nil
 }
 
-// computeWorkspaceDeps uses `go mod graph` to compute transitive external
-// dependencies per workspace module. Keys in the returned map are Go module
-// paths (e.g. "example.com/hello"), values contain the relative directory
-// and the list of external dependency module paths.
+// computeWorkspaceDeps uses `go list -deps` to compute transitive production
+// dependencies per workspace module, excluding test-only imports.
+// Keys in the returned map are Go module paths (e.g. "example.com/hello"),
+// values contain the relative directory and the list of external dependency
+// module paths needed for a non-test build.
 func computeWorkspaceDeps(workspace *WorkspaceInfo) (map[string]*schema.WorkspaceModuleInfo, error) {
 	modulePathMap, err := workspace.ModulePathMap()
 	if err != nil {
@@ -306,65 +307,47 @@ func computeWorkspaceDeps(workspace *WorkspaceInfo) (map[string]*schema.Workspac
 		workspaceModPaths[modPath] = true
 	}
 
-	log.Info("Computing per-module dependency graph")
-
-	cmd := exec.Command("go", "mod", "graph")
-	cmd.Dir = workspace.RootDir
-	stdout, err := cmd.Output()
-	if err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("failed to run 'go mod graph': %s\n%s", exiterr, exiterr.Stderr)
-		}
-		return nil, fmt.Errorf("failed to run 'go mod graph': %w", err)
-	}
-
-	edges := make(map[string][]string)
-	lines := strings.Split(string(stdout), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		parts := strings.Fields(line)
-		if len(parts) != 2 {
-			continue
-		}
-		from := stripModVersion(parts[0])
-		to := stripModVersion(parts[1])
-		edges[from] = append(edges[from], to)
-	}
+	log.Info("Computing per-module production dependencies")
 
 	result := make(map[string]*schema.WorkspaceModuleInfo)
 	for modPath, relDir := range modulePathMap {
-		visited := make(map[string]bool)
-		queue := []string{modPath}
-		for len(queue) > 0 {
-			current := queue[0]
-			queue = queue[1:]
-			if visited[current] {
+		moduleDir := filepath.Join(workspace.RootDir, relDir)
+
+		cmd := exec.Command(
+			"go", "list", "-deps",
+			"-f", "{{if and (not .Standard) .Module}}{{.Module.Path}}{{end}}",
+			"./...",
+		)
+		cmd.Dir = moduleDir
+		stdout, err := cmd.Output()
+		if err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				return nil, fmt.Errorf("failed to run 'go list -deps' in %s: %s\n%s", relDir, exiterr, exiterr.Stderr)
+			}
+			return nil, fmt.Errorf("failed to run 'go list -deps' in %s: %w", relDir, err)
+		}
+
+		seen := make(map[string]bool)
+		var deps []string
+		for _, line := range strings.Split(string(stdout), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || workspaceModPaths[line] {
 				continue
 			}
-			visited[current] = true
-			for _, dep := range edges[current] {
-				if !visited[dep] {
-					queue = append(queue, dep)
-				}
-			}
-		}
-		var deps []string
-		for dep := range visited {
-			if !workspaceModPaths[dep] && dep != "go" && dep != "toolchain" {
-				deps = append(deps, dep)
+			if !seen[line] {
+				seen[line] = true
+				deps = append(deps, line)
 			}
 		}
 		sort.Strings(deps)
+
 		result[modPath] = &schema.WorkspaceModuleInfo{
 			Dir:  relDir,
 			Deps: deps,
 		}
 	}
 
-	log.Info("Done computing per-module dependency graph")
+	log.Info("Done computing per-module production dependencies")
 
 	return result, nil
 }
