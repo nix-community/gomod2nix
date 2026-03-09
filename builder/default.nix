@@ -551,6 +551,8 @@ let
         modRoot =
           if attrs ? modRoot then
             attrs.modRoot
+          else if attrs ? sourceRoot then
+            ""
           else if wsModuleInfo != null then
             wsModuleInfo.dir
           else
