@@ -1,5 +1,6 @@
 source $stdenv/setup
 
+export GOWORK=off
 export HOME=$(mktemp -d)
 
 # Call once first outside of subshell for better error reporting

@@ -70,6 +70,7 @@ func common(directory string) ([]*goModDownload, map[string]string, error) {
 			"go", "mod", "download", "--json",
 		)
 		cmd.Dir = directory
+		cmd.Env = append(os.Environ(), "GOWORK=off")
 		stdout, err := cmd.Output()
 		if err != nil {
 			if exiterr, ok := err.(*exec.ExitError); ok {
@@ -144,16 +145,9 @@ builtins.filterSource (name: type: baseNameOf name != ".DS_Store") (
 	return executor.Wait()
 }
 
-func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
-	modDownloads, replace, err := common(directory)
-	if err != nil {
-		return nil, err
-	}
-
+func hashPackages(modDownloads []*goModDownload, replace map[string]string, cache map[string]*schema.Package, numWorkers int) ([]*schema.Package, error) {
 	executor := lib.NewParallelExecutor(numWorkers)
 	var mux sync.Mutex
-
-	cache := schema.ReadCache(goMod2NixPath)
 
 	packages := []*schema.Package{}
 	addPkg := func(pkg *schema.Package) {
@@ -205,7 +199,7 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 		})
 	}
 
-	err = executor.Wait()
+	err := executor.Wait()
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +209,169 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 	})
 
 	return packages, nil
+}
+
+func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
+	modDownloads, replace, err := common(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	cache := schema.ReadCache(goMod2NixPath)
+	return hashPackages(modDownloads, replace, cache, numWorkers)
+}
+
+func stripModVersion(s string) string {
+	if idx := strings.Index(s, "@"); idx != -1 {
+		return s[:idx]
+	}
+	return s
+}
+
+// commonWorkspace downloads all external modules for the workspace and collects
+// non-local replace directives from go.work and all module go.mod files.
+func commonWorkspace(workspace *WorkspaceInfo) ([]*goModDownload, map[string]string, error) {
+	log.WithFields(log.Fields{
+		"rootDir": workspace.RootDir,
+	}).Info("Processing workspace dependencies")
+
+	replace := make(map[string]string)
+	for _, repl := range workspace.WorkFile.Replace {
+		if repl.New.Version == "" {
+			continue
+		}
+		replace[repl.New.Path] = repl.Old.Path
+	}
+
+	for _, moduleDir := range workspace.ModuleDirs {
+		goModPath := filepath.Join(moduleDir, "go.mod")
+		data, err := os.ReadFile(goModPath)
+		if err != nil {
+			continue
+		}
+		mod, err := modfile.Parse(goModPath, data, nil)
+		if err != nil {
+			continue
+		}
+		for _, repl := range mod.Replace {
+			if repl.New.Version == "" {
+				continue
+			}
+			if _, exists := replace[repl.New.Path]; !exists {
+				replace[repl.New.Path] = repl.Old.Path
+			}
+		}
+	}
+
+	log.Info("Downloading workspace dependencies")
+
+	cmd := exec.Command("go", "mod", "download", "--json")
+	cmd.Dir = workspace.RootDir
+	stdout, err := cmd.Output()
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			return nil, nil, fmt.Errorf("failed to run 'go mod download --json': %s\n%s", exiterr, exiterr.Stderr)
+		}
+		return nil, nil, fmt.Errorf("failed to run 'go mod download --json': %s", err)
+	}
+
+	var modDownloads []*goModDownload
+	dec := json.NewDecoder(bytes.NewReader(stdout))
+	for {
+		var dl *goModDownload
+		err := dec.Decode(&dl)
+		if err == io.EOF {
+			break
+		}
+		modDownloads = append(modDownloads, dl)
+	}
+
+	log.Info("Done downloading workspace dependencies")
+
+	return modDownloads, replace, nil
+}
+
+// computeWorkspaceDeps uses `go list -deps` to compute transitive production
+// dependencies per workspace module, excluding test-only imports.
+// Keys in the returned map are Go module paths (e.g. "example.com/hello"),
+// values contain the relative directory and the list of external dependency
+// module paths needed for a non-test build.
+func computeWorkspaceDeps(workspace *WorkspaceInfo) (map[string]*schema.WorkspaceModuleInfo, error) {
+	modulePathMap, err := workspace.ModulePathMap()
+	if err != nil {
+		return nil, err
+	}
+
+	workspaceModPaths := make(map[string]bool)
+	for modPath := range modulePathMap {
+		workspaceModPaths[modPath] = true
+	}
+
+	log.Info("Computing per-module production dependencies")
+
+	result := make(map[string]*schema.WorkspaceModuleInfo)
+	for modPath, relDir := range modulePathMap {
+		moduleDir := filepath.Join(workspace.RootDir, relDir)
+
+		cmd := exec.Command(
+			"go", "list", "-deps",
+			"-f", "{{if and (not .Standard) .Module}}{{.Module.Path}}{{end}}",
+			"./...",
+		)
+		cmd.Dir = moduleDir
+		stdout, err := cmd.Output()
+		if err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				return nil, fmt.Errorf("failed to run 'go list -deps' in %s: %s\n%s", relDir, exiterr, exiterr.Stderr)
+			}
+			return nil, fmt.Errorf("failed to run 'go list -deps' in %s: %w", relDir, err)
+		}
+
+		seen := make(map[string]bool)
+		var deps []string
+		for _, line := range strings.Split(string(stdout), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || workspaceModPaths[line] {
+				continue
+			}
+			if !seen[line] {
+				seen[line] = true
+				deps = append(deps, line)
+			}
+		}
+		sort.Strings(deps)
+
+		result[modPath] = &schema.WorkspaceModuleInfo{
+			Dir:  relDir,
+			Deps: deps,
+		}
+	}
+
+	log.Info("Done computing per-module production dependencies")
+
+	return result, nil
+}
+
+// GenerateWorkspacePkgs generates packages and a per-module dependency map
+// for an entire Go workspace, producing a single unified lock file.
+func GenerateWorkspacePkgs(workspace *WorkspaceInfo, goMod2NixPath string, numWorkers int) ([]*schema.Package, map[string]*schema.WorkspaceModuleInfo, error) {
+	modDownloads, replace, err := commonWorkspace(workspace)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	workspaceDeps, err := computeWorkspaceDeps(workspace)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cache := schema.ReadCache(goMod2NixPath)
+	packages, err := hashPackages(modDownloads, replace, cache, numWorkers)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return packages, workspaceDeps, nil
 }
 
 // GenerateCacheDeps generates a list of all imported packages
@@ -244,6 +401,7 @@ func GenerateCacheDeps(directory string) ([]string, error) {
 	// Run go list to get all imported packages
 	cmd := exec.Command("go", "list", "-mod=readonly", "-f", "{{.ImportPath}}", "all")
 	cmd.Dir = directory
+	cmd.Env = append(os.Environ(), "GOWORK=off")
 	stdout, err := cmd.Output()
 	if err != nil {
 		if exiterr, ok := err.(*exec.ExitError); ok {

@@ -4,3 +4,4 @@ result*
 /tests/*/go.mod
 .idea
 .direnv
+gomod2nix-workspace

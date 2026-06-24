@@ -113,6 +113,7 @@ let
     {
       go,
       modulesStruct,
+      mod ? modulesStruct.mod,
       defaultPackage ? "",
       goMod,
       pwd,
@@ -137,12 +138,12 @@ let
           inherit (meta) version hash;
           inherit go;
         }
-      ) modulesStruct.mod;
+      ) mod;
     in
     runCommand "vendor-env"
       {
         nativeBuildInputs = [ go ];
-        json = toJSON (filterAttrs (n: _: n != defaultPackage) modulesStruct.mod);
+        json = toJSON (filterAttrs (n: _: n != defaultPackage) mod);
 
         sources = toJSON (filterAttrs (n: _: n != defaultPackage) sources);
 
@@ -205,6 +206,7 @@ let
 
       inherit (go) GOOS GOARCH;
       inherit CGO_ENABLED;
+      GOWORK = "off";
 
       # Pass allowGoReference to hook for GOFLAGS configuration
       allowGoReference = if allowGoReference then "1" else "";
@@ -237,15 +239,36 @@ let
         ${
           if hasCachePackages then
             ''
-              echo "Building ${toString (builtins.length cachePackages)} packages to populate cache..."
+              # `cachePackages` is the GLOBAL workspace union of production deps.
+              # In workspace mode each module only vendors its OWN transitive
+              # deps, so importing the full list breaks the build: a single
+              # generated cache.go that imports an un-vendored package fails at
+              # import resolution *before compiling anything*, leaving the cache
+              # empty (the old `go build cache.go || true` swallowed exactly that
+              # error). Instead, filter to packages actually present in THIS
+              # module's vendor tree and compile them directly by import path —
+              # resilient, because Go caches each package it manages to compile
+              # independently of the others.
+              : > cache-pkgs.txt
+              for pkg in ${lib.escapeShellArgs cachePackages}; do
+                if [ -d "vendor/$pkg" ]; then
+                  printf '%s\n' "$pkg" >> cache-pkgs.txt
+                fi
+              done
+              echo "Building $(wc -l < cache-pkgs.txt) of ${toString (builtins.length cachePackages)} cache packages present in this module's vendor..."
 
-              # Generate cache.go that imports all packages
-              printf '%s\n' ${lib.escapeShellArgs cachePackages} | ${internal.cachegen} > cache.go
-
-              cat cache.go
-
-              # Build cache.go - Go will build all dependencies using its scheduler
-              go build -v -mod=vendor cache.go || true
+              # Compile each package INDEPENDENTLY (one `go build` per import
+              # path), tolerating failures. A single `go build pkgA pkgB ...`
+              # aborts during package *loading* if any one path has an
+              # unresolvable import (e.g. a local test-only helper that imports a
+              # non-vendored test dependency) — leaving the cache empty. Building
+              # them one at a time means a bad package only drops itself; every
+              # other package's compiled output still lands in $GOCACHE. Run in
+              # parallel ($NIX_BUILD_CORES at a time) since Go's cache is
+              # concurrency-safe and shared deps are compiled once and reused.
+              xargs -r -P "''${NIX_BUILD_CORES:-1}" -I {} \
+                sh -c 'go build -mod=vendor "$1" 2>/dev/null || true' _ {} \
+                < cache-pkgs.txt
 
               echo "Cache population complete"
             ''
@@ -409,6 +432,14 @@ let
       tags ? [ ],
       ldflags ? [ ],
       disableGoCache ? false,
+      # Pre-built GOCACHE to restore instead of computing a per-build one.
+      # Lets a whole workspace share ONE cache of compiled third-party deps:
+      # since the Go build cache is content-addressed (keyed by source + flags +
+      # toolchain), an object compiled once is valid for every binary built with
+      # the same flags. The caller is responsible for building it with matching
+      # tags/ldflags/CGO/go version (see mkWorkspaceCacheEnv).
+      externalCacheEnv ? null,
+      workspaceModule ? null,
 
       ...
     }@attrs:
@@ -423,6 +454,35 @@ let
 
       defaultPackage = modulesStruct.goPackagePath or "";
 
+      # When workspaceModule is set, filter mod to only that module's transitive deps
+      allMod = modulesStruct.mod or { };
+
+      wsModuleInfo =
+        if workspaceModule != null then
+          if
+            hasAttr "workspaceModules" modulesStruct
+            && hasAttr workspaceModule modulesStruct.workspaceModules
+          then
+            modulesStruct.workspaceModules.${workspaceModule}
+          else
+            throw "buildGoApplication: workspaceModule '${workspaceModule}' not found in gomod2nix.toml workspaceModules. Available: ${builtins.toString (builtins.attrNames (modulesStruct.workspaceModules or { }))}"
+        else
+          null;
+
+      effectiveMod =
+        if wsModuleInfo != null then
+          let
+            allowedSet = builtins.listToAttrs (
+              map (name: {
+                inherit name;
+                value = true;
+              }) wsModuleInfo.deps
+            );
+          in
+          filterAttrs (n: _: hasAttr n allowedSet) allMod
+        else
+          allMod;
+
       vendorEnv =
         if modulesStruct != { } then
           mkVendorEnv {
@@ -433,6 +493,7 @@ let
               modulesStruct
               pwd
               ;
+            mod = effectiveMod;
           }
         else
           null;
@@ -464,7 +525,9 @@ let
           null;
 
       cacheEnv =
-        if (!disableGoCache && modulesStruct != { } && depFilesPath != null) then
+        if externalCacheEnv != null then
+          externalCacheEnv
+        else if (!disableGoCache && modulesStruct != { } && depFilesPath != null) then
           mkGoCacheEnv {
             inherit
               go
@@ -493,7 +556,10 @@ let
       // optionalAttrs (hasAttr "subPackages" modulesStruct) {
         subPackages = modulesStruct.subPackages;
       }
-      // attrs
+      // removeAttrs attrs [
+        "workspaceModule"
+        "externalCacheEnv"
+      ]
       // {
         nativeBuildInputs = [
           go
@@ -507,6 +573,7 @@ let
         inherit (go) GOOS GOARCH;
 
         CGO_ENABLED = attrs.CGO_ENABLED or go.CGO_ENABLED;
+        GOWORK = "off";
 
         # Pass allowGoReference to hook for GOFLAGS configuration
         allowGoReference = if allowGoReference then "1" else "";
@@ -514,7 +581,15 @@ let
         goVendorDir = if vendorEnv != null then vendorEnv else "";
         goCacheDir = if cacheEnv != null then cacheEnv else "";
         inherit tags ldflags;
-        modRoot = attrs.modRoot or "";
+        modRoot =
+          if attrs ? modRoot then
+            attrs.modRoot
+          else if attrs ? sourceRoot then
+            ""
+          else if wsModuleInfo != null then
+            wsModuleInfo.dir
+          else
+            "";
 
         doCheck = attrs.doCheck or true;
 
@@ -552,6 +627,69 @@ let
       }
     );
 
+  # Build ONE GOCACHE for an entire go.work workspace: compile every cached
+  # third-party dependency a single time, against a vendor tree holding the
+  # union of all modules' deps. The resulting cache is fed to every app via
+  # `buildGoApplication { externalCacheEnv = ...; }`. Because the Go build cache
+  # is content-addressed (keyed by source + flags + toolchain), the objects are
+  # identical to what each app would have produced on its own — so a single
+  # workspace cache replaces N per-app caches that each recompiled the same
+  # ~4000 objects.
+  #
+  # Consistency requirement: tags/ldflags/CGO_ENABLED and the Go toolchain MUST
+  # match what buildGoApplication uses for the apps, or the cache keys diverge
+  # and nothing is reused. The Go version is derived from `referenceGoMod` with
+  # the same `selectGo` logic buildGoApplication applies per app.
+  mkWorkspaceCacheEnv =
+    {
+      modules,
+      referenceGoMod,
+      tags ? [ ],
+      ldflags ? [ ],
+      CGO_ENABLED ? null,
+      allowGoReference ? false,
+    }:
+    let
+      modulesStruct = fromTOML (readFile modules);
+      refGoMod = parseGoMod (readFile referenceGoMod);
+      go = selectGo { } refGoMod;
+
+      # Vendor the union of all third-party modules. goMod = null skips local
+      # replace symlinks (the workspace's own packages are never cached — their
+      # source changes every build), pwd is therefore unused.
+      vendorEnv = mkVendorEnv {
+        inherit go modulesStruct;
+        mod = modulesStruct.mod;
+        goMod = null;
+        pwd = null;
+      };
+
+      # Minimal synthetic module. With GO_NO_VENDOR_CHECKS=1 (set by the config
+      # hook) Go resolves any package physically present in vendor/, so this
+      # go.mod needs only the module + go directives — no require/go.sum.
+      depFilesPath = runCommand "workspace-cache-dep-files" { } ''
+        mkdir -p "$out"
+        {
+          echo "module inity-workspace-cache"
+          echo "go ${refGoMod.go}"
+        } > "$out/go.mod"
+        touch "$out/go.sum"
+      '';
+    in
+    mkGoCacheEnv {
+      inherit
+        go
+        modulesStruct
+        vendorEnv
+        depFilesPath
+        tags
+        ldflags
+        allowGoReference
+        ;
+      CGO_ENABLED = if CGO_ENABLED != null then CGO_ENABLED else go.CGO_ENABLED;
+      goMod = { replace = { }; };
+    };
+
 in
 {
   inherit
@@ -559,6 +697,7 @@ in
     mkGoEnv
     mkVendorEnv
     mkGoCacheEnv
+    mkWorkspaceCacheEnv
     hooks
     ;
 }
