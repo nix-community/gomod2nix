@@ -88,3 +88,27 @@ To speed up development and avoid downloading dependencies again in the Nix stor
 ``` bash
 $ gomod2nix import
 ```
+
+## Cross Compilation
+
+With `gomodwnix` added to your `pkgs` via a `nixpkgs` overlay, cross compilation should "just work". To do that you'd have to use Nixpkgs' `pkgsCross.` and `callPackage` splicing. To do that, write a `.nix` file with `buildGoApplication` as an argument (so `callPackage` will splice it):
+
+```nix
+# example `package.nix`
+{
+  lib,
+  buildGoApplication,
+}:
+
+buildGoApplication {
+  pname = "myapp";
+  version = "0.1";
+  pwd = ./.;
+  src = ./.;
+  modules = ./gomod2nix.toml;
+}
+```
+
+Then, if you'd use `pkgsCross.<cross-system>.callPackage ./package.nix { }`, with a target `<cross-system>` (e.g `aarch64-multiplatform`), `gomod2nix` will cross compile your project.
+Note that `pkgsCross.<cross-system>.pkgsStatic.callPackage` should also work.
+If you use a `flake.nix` for your project, simply define multiple `packages` attributes such as `myapp-linux-aarch64`/`myapp-linux-armv7` each defined with the appropriate `callPackage`.
