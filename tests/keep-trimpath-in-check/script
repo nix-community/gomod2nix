@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "${0%/*}"
+# --with-deps emits `cachePackages`, which is what makes the builder restore a
+# pre-populated GOCACHE; without it there is nothing to reuse during the check.
+exec $GOMOD2NIX generate --with-deps

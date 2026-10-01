@@ -404,6 +404,13 @@ let
       pwd ? null,
       nativeBuildInputs ? [ ],
       allowGoReference ? false,
+      # Keep `-trimpath` while running the tests. By default the check hook drops
+      # it so tests can reference assets by source path, but `-trimpath` is part
+      # of Go's build-cache key, so dropping it makes every package a cache miss
+      # and the whole dependency tree is recompiled for `go test` even when a
+      # shared GOCACHE was restored. Enable it when tests only use paths relative
+      # to the package directory.
+      keepTrimpathInCheck ? false,
       meta ? { },
       passthru ? { },
       tags ? [ ],
@@ -510,6 +517,7 @@ let
 
         # Pass allowGoReference to hook for GOFLAGS configuration
         allowGoReference = if allowGoReference then "1" else "";
+        keepTrimpathInCheck = if keepTrimpathInCheck then "1" else "";
 
         goVendorDir = if vendorEnv != null then vendorEnv else "";
         goCacheDir = if cacheEnv != null then cacheEnv else "";

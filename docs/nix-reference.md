@@ -12,6 +12,7 @@ Arguments:
 - **go** The Go compiler to use (can be omitted).
 - **subPackages** Only build these specific sub packages.
 - **allowGoReference** Allow references to the Go compiler in the output closure (\_default: `false`).
+- **keepTrimpathInCheck** Keep `-trimpath` while running tests (\_default: `false`). `-trimpath` is part of Go's build-cache key, so removing it for tests recompiles the whole dependency tree even with a restored `externalCacheEnv`; enable it when tests only use paths relative to the package directory.
 - **tags** A list of tags to pass the Go compiler during the build (\_default: `[ ]`).
 - **ldflags** A list of `ldflags` to pass the Go compiler during the build (\_default: `[ ]`).
 - **nativeBuildInputs** A list of packages to include in the build derivation (\_default: `[ ]`).
