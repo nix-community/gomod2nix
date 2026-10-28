@@ -84,6 +84,13 @@ $ gomod2nix generate --with-deps
 
 This generates a list of imported packages that will be pre-compiled during the build, significantly reducing subsequent build times. This is particularly useful for projects with many dependencies.
 
+To fetch private modules (those matching `GONOPROXY`, by default `GOPRIVATE`) from their git origin instead of the module proxy, use:
+``` bash
+$ gomod2nix generate --private-via-git
+```
+
+The builder then fetches them with `builtins.fetchGit` at evaluation time, using your git credentials, so the build sandbox needs none.
+
 To speed up development and avoid downloading dependencies again in the Nix store you can import them directly from the Go cache using:
 ``` bash
 $ gomod2nix import

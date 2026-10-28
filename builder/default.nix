@@ -109,6 +109,23 @@ let
       impureEnvVars = fetchers.proxyImpureEnvVars ++ [ "GOPROXY" ];
     };
 
+  # A module with a `git` origin is fetched at evaluation time with the caller's git
+  # credentials, so private modules never need credentials inside the sandbox.
+  fetchGoModuleGit =
+    {
+      url,
+      rev,
+      ref ? null,
+      subdir ? "",
+      ...
+    }:
+    let
+      src = builtins.fetchGit (
+        { inherit url rev; } // (if ref != null then { inherit ref; } else { allRefs = true; })
+      );
+    in
+    if subdir == "" then src else "${src}/${subdir}";
+
   mkVendorEnv =
     {
       go,
@@ -132,11 +149,14 @@ let
 
       sources = mapAttrs (
         goPackagePath: meta:
-        fetchGoModule {
-          goPackagePath = meta.replaced or goPackagePath;
-          inherit (meta) version hash;
-          inherit go;
-        }
+        if meta.git or null != null then
+          fetchGoModuleGit meta.git
+        else
+          fetchGoModule {
+            goPackagePath = meta.replaced or goPackagePath;
+            inherit (meta) version hash;
+            inherit go;
+          }
       ) modulesStruct.mod;
     in
     runCommand "vendor-env"
