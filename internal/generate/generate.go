@@ -217,6 +217,46 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 	return packages, nil
 }
 
+// GenerateModulesTxt returns the vendor/modules.txt that `go mod vendor` writes for the module in
+// directory, or an empty string if the module has no dependencies to vendor.
+func GenerateModulesTxt(directory string) (string, error) {
+	tmpDir, err := os.MkdirTemp("", "gomod2nix-vendor-")
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"tmpDir": tmpDir,
+				"err":    err,
+			}).Warn("failed to remove temp dir")
+		}
+	}()
+	vendorDir := filepath.Join(tmpDir, "vendor")
+
+	log.Info("Running 'go mod vendor' to obtain vendor/modules.txt")
+
+	cmd := exec.Command("go", "mod", "vendor", "-o", vendorDir)
+	cmd.Dir = directory
+	_, err = cmd.Output()
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("failed to run 'go mod vendor': %s\n%s", exiterr, exiterr.Stderr)
+		}
+		return "", fmt.Errorf("failed to run 'go mod vendor': %w", err)
+	}
+
+	modulesTxt, err := os.ReadFile(filepath.Join(vendorDir, "modules.txt"))
+	if os.IsNotExist(err) {
+		return "", nil
+	} else if err != nil {
+		return "", err
+	}
+
+	return string(modulesTxt), nil
+}
+
 // GenerateCacheDeps generates a list of all imported packages
 // (excluding standard library and the current module's packages) for cache optimization.
 func GenerateCacheDeps(directory string) ([]string, error) {

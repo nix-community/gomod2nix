@@ -146,6 +146,8 @@ let
 
         sources = toJSON (filterAttrs (n: _: n != defaultPackage) sources);
 
+        modulesTxt = modulesStruct.vendor.modulesTxt or "";
+
         passthru = {
           inherit sources;
         };
@@ -153,6 +155,7 @@ let
         passAsFile = [
           "json"
           "sources"
+          "modulesTxt"
         ];
       }
       (''
@@ -163,6 +166,7 @@ let
 
         ${internal.symlink}
         ${concatStringsSep "\n" localReplaceCommands}
+        ${optionalString (modulesStruct ? vendor.modulesTxt) ''cp "$modulesTxtPath" vendor/modules.txt''}
 
         mv vendor $out
       '');

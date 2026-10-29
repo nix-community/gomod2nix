@@ -29,15 +29,27 @@ type Output struct {
 
 	// List of packages to pre-compile in build cache for faster builds
 	CachePackages []string `toml:"cachePackages,multiline,omitempty"`
+
+	// Declared after Mod, so that the table is written after [mod]
+	Vendor *Vendor `toml:"vendor,omitempty"`
 }
 
-func Marshal(pkgs []*Package, goPackagePath string, subPackages []string, cachePackages []string) ([]byte, error) {
+type Vendor struct {
+	// vendor/modules.txt as written by `go mod vendor`, so that binaries record their dependencies
+	ModulesTxt string `toml:"modulesTxt,multiline"`
+}
+
+func Marshal(pkgs []*Package, goPackagePath string, subPackages []string, cachePackages []string, modulesTxt string) ([]byte, error) {
 	out := &Output{
 		SchemaVersion: SchemaVersion,
 		Mod:           make(map[string]*Package),
 		SubPackages:   subPackages,
 		GoPackagePath: goPackagePath,
 		CachePackages: cachePackages,
+	}
+
+	if modulesTxt != "" {
+		out.Vendor = &Vendor{ModulesTxt: modulesTxt}
 	}
 
 	for _, pkg := range pkgs {

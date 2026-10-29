@@ -84,6 +84,13 @@ $ gomod2nix generate --with-deps
 
 This generates a list of imported packages that will be pre-compiled during the build, significantly reducing subsequent build times. This is particularly useful for projects with many dependencies.
 
+To record the module dependencies in the build info of binaries (`go version -m`), as read by tools like govulncheck or SBOM generators, use:
+``` bash
+$ gomod2nix generate --with-modules-txt
+```
+
+This stores the `vendor/modules.txt` written by `go mod vendor` in `gomod2nix.toml`. Go then checks it strictly against the `go.mod` of the module being built, so generate it in the directory of that module (`modRoot`).
+
 To speed up development and avoid downloading dependencies again in the Nix store you can import them directly from the Go cache using:
 ``` bash
 $ gomod2nix import

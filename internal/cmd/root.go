@@ -15,10 +15,11 @@ import (
 const directoryDefault = "./"
 
 var (
-	flagDirectory string
-	flagOutDir    string
-	maxJobs       int
-	flagWithDeps  bool
+	flagDirectory  string
+	flagOutDir     string
+	maxJobs        int
+	flagWithDeps   bool
+	flagModulesTxt bool
 )
 
 func generateFunc(cmd *cobra.Command, args []string) {
@@ -33,6 +34,10 @@ func generateFunc(cmd *cobra.Command, args []string) {
 
 		if directory != directoryDefault {
 			panic(fmt.Errorf("directory flag not supported together with import arguments"))
+		}
+		// The temporary project's modules.txt would not match the go.mod of the module that is built.
+		if flagModulesTxt {
+			panic(fmt.Errorf("modules.txt flag not supported together with import arguments"))
 		}
 		if outDir == "" {
 			pwd, err := os.Getwd()
@@ -85,7 +90,15 @@ func generateFunc(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		output, err := schema.Marshal(pkgs, goPackagePath, subPackages, cachePackages)
+		var modulesTxt string
+		if flagModulesTxt {
+			modulesTxt, err = generate.GenerateModulesTxt(directory)
+			if err != nil {
+				panic(fmt.Errorf("error generating vendor/modules.txt: %v", err))
+			}
+		}
+
+		output, err := schema.Marshal(pkgs, goPackagePath, subPackages, cachePackages, modulesTxt)
 		if err != nil {
 			panic(fmt.Errorf("error marshaling output: %v", err))
 		}
@@ -126,6 +139,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&flagOutDir, "outdir", "", "Output directory (defaults to project directory)")
 	rootCmd.PersistentFlags().IntVar(&maxJobs, "jobs", 10, "Max number of concurrent jobs")
 	rootCmd.PersistentFlags().BoolVar(&flagWithDeps, "with-deps", false, "Include dependencies in gomod2nix.toml for build cache priming")
+	rootCmd.PersistentFlags().BoolVar(&flagModulesTxt, "with-modules-txt", false, "Include vendor/modules.txt in gomod2nix.toml so that binaries record their dependencies")
 
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(importCmd)
