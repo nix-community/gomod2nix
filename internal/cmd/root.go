@@ -15,10 +15,11 @@ import (
 const directoryDefault = "./"
 
 var (
-	flagDirectory string
-	flagOutDir    string
-	maxJobs       int
-	flagWithDeps  bool
+	flagDirectory     string
+	flagOutDir        string
+	maxJobs           int
+	flagWithDeps      bool
+	flagPrivateViaGit bool
 )
 
 func generateFunc(cmd *cobra.Command, args []string) {
@@ -64,7 +65,7 @@ func generateFunc(cmd *cobra.Command, args []string) {
 	{
 		goMod2NixPath := filepath.Join(outDir, "gomod2nix.toml")
 		outFile := goMod2NixPath
-		pkgs, err := generate.GeneratePkgs(directory, goMod2NixPath, maxJobs)
+		pkgs, err := generate.GeneratePkgs(directory, goMod2NixPath, maxJobs, flagPrivateViaGit)
 		if err != nil {
 			panic(fmt.Errorf("error generating pkgs: %v", err))
 		}
@@ -126,6 +127,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&flagOutDir, "outdir", "", "Output directory (defaults to project directory)")
 	rootCmd.PersistentFlags().IntVar(&maxJobs, "jobs", 10, "Max number of concurrent jobs")
 	rootCmd.PersistentFlags().BoolVar(&flagWithDeps, "with-deps", false, "Include dependencies in gomod2nix.toml for build cache priming")
+	rootCmd.PersistentFlags().BoolVar(&flagPrivateViaGit, "private-via-git", false, "Fetch modules matching GONOPROXY (by default GOPRIVATE) from their git origin with builtins.fetchGit, using the git credentials of the evaluating user")
 
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(importCmd)

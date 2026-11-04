@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	schema "github.com/nix-community/gomod2nix/internal/schema"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 type goModDownload struct {
@@ -31,6 +33,15 @@ type goModDownload struct {
 	Dir      string
 	Sum      string
 	GoModSum string
+	Origin   *goModOrigin
+}
+
+type goModOrigin struct {
+	VCS    string
+	URL    string
+	Subdir string
+	Hash   string
+	Ref    string
 }
 
 func sourceFilter(name string, nodeType nar.NodeType) bool {
@@ -144,10 +155,18 @@ builtins.filterSource (name: type: baseNameOf name != ".DS_Store") (
 	return executor.Wait()
 }
 
-func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*schema.Package, error) {
+func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int, privateViaGit bool) ([]*schema.Package, error) {
 	modDownloads, replace, err := common(directory)
 	if err != nil {
 		return nil, err
+	}
+
+	var noProxy string
+	if privateViaGit {
+		noProxy, err = goEnv(directory, "GONOPROXY")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	executor := lib.NewParallelExecutor(numWorkers)
@@ -168,8 +187,24 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 			goPackagePath = dl.Path
 		}
 
+		var git *schema.GitOrigin
+		if noProxy != "" && module.MatchPrefixPatterns(noProxy, dl.Path) {
+			if dl.Origin == nil {
+				dl.Origin, err = freshOrigin(directory, dl)
+				if err != nil {
+					return nil, err
+				}
+			}
+			git = gitOrigin(dl)
+			if git == nil {
+				log.WithFields(log.Fields{
+					"goPackagePath": dl.Path,
+				}).Warn("Private module was not fetched from git, keeping the module proxy fetch")
+			}
+		}
+
 		cached, ok := cache[goPackagePath]
-		if ok && cached.Version == dl.Version {
+		if ok && cached.Version == dl.Version && reflect.DeepEqual(cached.Git, git) {
 			addPkg(cached)
 			continue
 		}
@@ -190,6 +225,7 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 				GoPackagePath: goPackagePath,
 				Version:       dl.Version,
 				Hash:          "sha256-" + base64.StdEncoding.EncodeToString(digest),
+				Git:           git,
 			}
 			if hasReplace {
 				pkg.ReplacedPath = dl.Path
@@ -215,6 +251,63 @@ func GeneratePkgs(directory string, goMod2NixPath string, numWorkers int) ([]*sc
 	})
 
 	return packages, nil
+}
+
+// freshOrigin re-downloads one module into a throwaway module cache: Go only records the origin
+// on a fetch, so a module cached by an older Go has none.
+func freshOrigin(directory string, dl *goModDownload) (*goModOrigin, error) {
+	tmp, err := os.MkdirTemp("", "gomod2nix-origin-")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err := os.RemoveAll(tmp)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"tmpDir": tmp,
+				"err":    err,
+			}).Warn("failed to remove temp dir")
+		}
+	}()
+
+	cmd := exec.Command("go", "mod", "download", "-json", dl.Path+"@"+dl.Version)
+	cmd.Dir = directory
+	cmd.Env = append(os.Environ(), "GOMODCACHE="+tmp, "GOFLAGS=-modcacherw")
+	stdout, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to re-download %s@%s for its origin: %w", dl.Path, dl.Version, err)
+	}
+
+	var fresh goModDownload
+	if err := json.Unmarshal(stdout, &fresh); err != nil {
+		return nil, err
+	}
+	return fresh.Origin, nil
+}
+
+// gitOrigin returns the git origin of a module, or nil if Go did not fetch it from git.
+func gitOrigin(dl *goModDownload) *schema.GitOrigin {
+	o := dl.Origin
+	if o == nil || o.VCS != "git" || o.Hash == "" {
+		return nil
+	}
+
+	return &schema.GitOrigin{
+		URL:    o.URL,
+		Ref:    o.Ref,
+		Rev:    o.Hash,
+		Subdir: o.Subdir,
+	}
+}
+
+func goEnv(directory string, key string) (string, error) {
+	cmd := exec.Command("go", "env", key)
+	cmd.Dir = directory
+	stdout, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to run 'go env %s': %w", key, err)
+	}
+	return strings.TrimSpace(string(stdout)), nil
 }
 
 // GenerateCacheDeps generates a list of all imported packages

@@ -11,10 +11,21 @@ import (
 const SchemaVersion = 3
 
 type Package struct {
-	GoPackagePath string `toml:"-"`
-	Version       string `toml:"version"`
-	Hash          string `toml:"hash"`
-	ReplacedPath  string `toml:"replaced,omitempty"`
+	GoPackagePath string     `toml:"-"`
+	Version       string     `toml:"version"`
+	Hash          string     `toml:"hash"`
+	ReplacedPath  string     `toml:"replaced,omitempty"`
+	Git           *GitOrigin `toml:"git,omitempty"`
+}
+
+// GitOrigin pins a module to the commit Go fetched it from. The builder fetches such a module
+// with `builtins.fetchGit` instead of the Go module proxy, so it needs no credentials in the
+// sandbox.
+type GitOrigin struct {
+	URL    string `toml:"url"`
+	Ref    string `toml:"ref,omitempty"`
+	Rev    string `toml:"rev"`
+	Subdir string `toml:"subdir,omitempty"`
 }
 
 type Output struct {

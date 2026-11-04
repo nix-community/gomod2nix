@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "${0%/*}"
+GOPRIVATE=github.com/spf13/pflag exec $GOMOD2NIX generate --private-via-git
