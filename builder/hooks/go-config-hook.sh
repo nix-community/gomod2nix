@@ -51,7 +51,6 @@ goConfigHook() {
     export GOPATH="$TMPDIR/go"
     export GOSUMDB=off
     export GOPROXY=off
-    export GO_NO_VENDOR_CHECKS=1
     export GO111MODULE=on
 
     export GOFLAGS="${GOFLAGS:+$GOFLAGS } -mod=vendor"
@@ -67,6 +66,9 @@ goConfigHook() {
             echo "Setting up vendor directory from ${goVendorDir}"
             rm -rf vendor
             @rsync@ -a -K --ignore-errors "${goVendorDir}"/ vendor
+            echo "Generating vendor/modules.txt"
+            chmod u+w vendor
+            GOTOOLCHAIN=local @modulestxt@
         fi
     fi
 

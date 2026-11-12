@@ -3,6 +3,7 @@
   makeSetupHook,
   buildPackages,
   stdenv,
+  modulestxt,
 }:
 {
   goConfigHook = makeSetupHook {
@@ -16,6 +17,7 @@
       rsync = lib.getExe buildPackages.rsync;
       tar = lib.getExe buildPackages.gnutar;
       zstd = lib.getExe buildPackages.zstd;
+      inherit modulestxt;
     };
   } ./go-config-hook.sh;
 
