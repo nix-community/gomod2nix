@@ -16,6 +16,7 @@
   stdenv,
   stdenvNoCC,
   writeScript,
+  writeText,
   zstd,
 }:
 let
@@ -27,6 +28,7 @@ let
       buildPackages
       stdenv
       ;
+    inherit (internal) modulestxt;
   };
 
   inherit (hooks)
@@ -78,6 +80,9 @@ let
     {
       # Create a symlink tree of vendored sources
       symlink = mkInternalPkg "symlink" ./symlink/symlink.go;
+
+      # Derive vendor/modules.txt from go.mod and the vendored sources
+      modulestxt = mkInternalPkg "modulestxt" ./modulestxt/modulestxt.go;
 
       # Install development dependencies from tools.go
       install = mkInternalPkg "symlink" ./install/install.go;
@@ -148,6 +153,20 @@ let
 
         passthru = {
           inherit sources;
+
+          # Input of `modulestxt`, kept out of the vendor env so it depends only on gomod2nix.toml.
+          modulesManifest = writeText "go-modules-manifest.json" (
+            toJSON (
+              mapAttrs (
+                goPackagePath: meta:
+                {
+                  inherit (meta) version;
+                  source = "${sources.${goPackagePath}}";
+                }
+                // optionalAttrs (meta ? replaced) { inherit (meta) replaced; }
+              ) (filterAttrs (n: _: n != defaultPackage) modulesStruct.mod)
+            )
+          );
         };
 
         passAsFile = [
@@ -213,6 +232,7 @@ let
       inherit tags ldflags;
 
       goVendorDir = vendorEnv;
+      goModulesManifest = vendorEnv.modulesManifest;
 
       # Change the working directory in prePatch so GoConfigHook sets up
       # vendor/ at the right location
@@ -365,17 +385,25 @@ let
         # Pass allowGoReference to hook for GOFLAGS configuration
         allowGoReference = if allowGoReference then "1" else "";
 
-        nativeBuildInputs = [
-          rsync
-          goConfigHook
-        ];
+        nativeBuildInputs = [ goConfigHook ];
 
         propagatedBuildInputs = [ go ];
 
         # Pass vendor directory to the setup hook
         goVendorDir = vendorEnv;
+        goModulesManifest = vendorEnv.modulesManifest;
 
         preferLocalBuild = true;
+
+        # Change the working directory in prePatch so goConfigHook sets up
+        # vendor/ next to go.mod
+        prePatch = ''
+          mkdir source
+          cp ${pwd + "/go.mod"} source/go.mod
+          cp ${pwd + "/go.sum"} source/go.sum
+          ${optionalString (pathExists toolsGo) "cp ${toolsGo} source/tools.go"}
+          cd source
+        '';
 
         buildPhase = ''
           mkdir $out
@@ -384,14 +412,6 @@ let
 
         ''
         + optionalString (pathExists toolsGo) ''
-          mkdir source
-          cp ${pwd + "/go.mod"} source/go.mod
-          cp ${pwd + "/go.sum"} source/go.sum
-          cp ${toolsGo} source/tools.go
-          cd source
-
-          rsync -a -K --ignore-errors ${vendorEnv}/ vendor
-
           ${internal.install}
         '';
       }
@@ -512,6 +532,7 @@ let
         allowGoReference = if allowGoReference then "1" else "";
 
         goVendorDir = if vendorEnv != null then vendorEnv else "";
+        goModulesManifest = if vendorEnv != null then vendorEnv.modulesManifest else "";
         goCacheDir = if cacheEnv != null then cacheEnv else "";
         inherit tags ldflags;
         modRoot = attrs.modRoot or "";

@@ -1,0 +1,13 @@
+# example.com/a v0.0.0 => ../deps/a
+## explicit; go 1.13
+example.com/a
+example.com/a/sub
+# example.com/a/nested v0.0.0 => ../deps/a/nested
+## explicit; go 1.13
+example.com/a/nested
+# example.com/b v1.0.0 => ../deps/b
+## explicit
+example.com/b
+# example.com/a => ../deps/a
+# example.com/a/nested => ../deps/a/nested
+# example.com/c => ../deps/c

@@ -1,0 +1,7 @@
+# example.com/a v0.0.0 => ../deps/a
+example.com/a
+example.com/a/sub
+# example.com/a/nested v0.0.0 => ../deps/a/nested
+example.com/a/nested
+# example.com/b v1.0.0 => ../deps/b
+example.com/b
