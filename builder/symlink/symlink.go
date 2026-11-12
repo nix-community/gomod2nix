@@ -91,8 +91,18 @@ func populateVendorPath(vendorPath string, src string) {
 		innerSrc := filepath.Join(src, f.Name())
 		dst := filepath.Join(vendorPath, f.Name())
 		if err := os.Symlink(innerSrc, dst); err != nil {
-			fmt.Println("symlink error, trying", innerSrc, err)
-			populateVendorPath(dst, innerSrc)
+			fi, lerr := os.Lstat(dst)
+			switch {
+			case lerr != nil:
+				panic(err)
+			case fi.Mode()&os.ModeSymlink != 0:
+				// A nested module owns its directory, matching Go's longest module prefix rule.
+				continue
+			case fi.IsDir() && f.IsDir():
+				populateVendorPath(dst, innerSrc)
+			default:
+				panic(fmt.Sprintf("conflicting vendor entry %s: %v", dst, err))
+			}
 		}
 	}
 }
