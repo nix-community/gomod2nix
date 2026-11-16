@@ -242,7 +242,9 @@ func GenerateCacheDeps(directory string) ([]string, error) {
 	}).Debug("Generating cache dependencies")
 
 	// Run go list to get all imported packages
-	cmd := exec.Command("go", "list", "-mod=readonly", "-f", "{{.ImportPath}}", "all")
+	// Skip main packages (e.g. go.mod `tool` directives): they cannot be
+	// imported, and a single one makes the cache-warming build fail outright.
+	cmd := exec.Command("go", "list", "-mod=readonly", "-f", `{{if ne .Name "main"}}{{.ImportPath}}{{end}}`, "all")
 	cmd.Dir = directory
 	stdout, err := cmd.Output()
 	if err != nil {
